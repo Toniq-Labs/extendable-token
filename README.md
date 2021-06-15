@@ -128,6 +128,6 @@ type TransferResponse = Result<Balance, {
 
 transfer: shared (request : TransferRequest) -> async TransferResponse;
 ```
-This function attempts to transfer an `amount` of `token` between two users, `from` and `to` with an optional `memo` (which is additional data specific to the transaction).
+This function attempts to transfer an `amount` of `token` between two users, `from` and `to`, with an optional `memo` (which is additional data specific to the transaction).
 
 If `notify` is `true`, the canister will attempt to notify the recipient of the transaction (for which a response must be returned). This gives the recipient the power to reject a transaction if they wish. The recipient can also choose to only accept a partial transfer of tokens. Any rejected tokens are refunded to the sender.
