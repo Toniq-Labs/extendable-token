@@ -1,13 +1,13 @@
-# EXT Standard - Core (ext-core)
+# EXT Standard
 ## The extendable token standard
 
 This token standard provides a ERC1155/multi-token-like approach with extensions that can add additional functionality based on the purpose of the token. EXT Standard allows for the following features:
 1. Multiple tokens (which can be a mix, e.g. fungible and non-fungible) within a single canister. This provides better computation/gas savings and can reduce complexities.
-2. `transferAndCall`-like approach for more streamlined usage (e.g. doesn't require allow + transferFrom to send to an exchange).
-3. Supports both native addresses (64 long hex) and principals. Developers can choose to reject one style and return an error if they wish.
-4. EXT Standard provides a method to query a token's capabilities to aid in deciding how to communicate with it.
+2. Bulit-in transfer notifications for more streamlined usage (e.g. similar to `transferAndCall`).
+3. Supports both native addresses (64 long hex) and `Principal`s. Developers can choose to reject one style and return an error if they wish (e.g. only working with `Principal`s)
+4. Extendable standard with a method to query a token's capabilities to aid in deciding how to communicate with it (better integration with 3rd party tools).
 
-You can view some of the extensions [here](EXTENSIONS.md).
+Here are some of the initial extensions we are working on:
 
 * allowance - ERC20 like allowances
 * archive - Transaction archive
@@ -17,6 +17,10 @@ You can view some of the extensions [here](EXTENSIONS.md).
 * operator - Operator's for spending tokens
 * secure - Add's update calls for common queries (more secure)
 * subscribe - Provide interface for notification subscription
+
+You can view more details [here](EXTENSIONS.md).
+
+**Please comment, submit PRs, publish your own extensions and collaborate with us to build this standard.**
 
 ## Rationale
 Tokens can be used in a wide variety of circumstances, from cryptocurrency ledgers to in-game assets and more. These tokens can serve different purposes and therefore need to allow for a wide variety of functionalities. On the other hand, 3rd party tools that need to integrate with tokens would benefit from a standardized interface.
