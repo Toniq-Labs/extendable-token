@@ -1,6 +1,6 @@
 //Secure - removes queries
 type Token_secure = actor {
-  extensions : shared () -> async [Extension];
+  extensions_secure : shared () -> async [Extension];
   
   metadata_secure: shared (token : TokenIdentifier) -> async Result<Metadata, CommonError>;
 
