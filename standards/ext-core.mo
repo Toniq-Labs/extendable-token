@@ -1,3 +1,6 @@
+//HM Do we abstract transfers out, and just have extensions and balance calls?
+//and move transfer into a "transfer" extension?
+
 //SubAccount and AID to support native addresses
 type AccountIdentifier = Text;
 type SubAccount = [Nat8];
