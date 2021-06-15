@@ -7,6 +7,8 @@ This token standard provides a ERC1155/multi-token-like approach with extensions
 3. Supports both native addresses (64 long hex) and principals. Developer's can choose to reject one style and return an error if they wish.
 4. EXT Standard provides a method to query a tokens capabilities to aid in deciding how to communicate with it.
 
+You can view some of our extensions [here](EXTENSIONS.md).
+
 ## Rationale
 Tokens can be used in a wide variety of circumstances, from cryptocurrency ledgers to in-game assets and more. These tokens can serve different purposes and therefore need to allow for a wide variety of functionalities. On the otherhand, 3rd party tools that need to integrate with tokens would benefit from a standardized interface.
 
