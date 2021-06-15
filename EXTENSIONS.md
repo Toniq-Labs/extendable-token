@@ -1,6 +1,8 @@
 # EXT Standard - Extensions
 * allowance - ERC20 like allowances
+
 ...Allows developers to include ERC20 like `approve` and `allowance` methods. Developers can already use `transfer` instead of `transferFrom` as it has an existing `from` field.
+
 * archive - Transaction archive
 * batch - Batch transfer/balance functions
 * common - Some common token methods (metadata, supply)
