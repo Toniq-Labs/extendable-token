@@ -16,7 +16,7 @@ type Balance = Nat;
 
 // A global uninque id for a token
 type TokenIdentifier  = {
-  canister : Token;
+  canister : Principal;
   index : Nat32;
 };
 
@@ -31,7 +31,7 @@ type Memo : Blob;
 type NotifyService = actor { tokenTransferNotification : shared (TokenIdentifier, User, Balance, ?Memo) -> async ?Balance)};
 
 //Common error respone
-type NoTokenError = {
+type CommonError = {
   #InvalidToken: TokenIdentifier;
   #Other : Text;
 };
@@ -41,7 +41,7 @@ type BalanceRequest = {
   user : User; 
   token: TokenIdentifier;
 };
-type BalanceResponse = Result<Balance, NoTokenError>;
+type BalanceResponse = Result<Balance, CommonError>;
 
 type TransferRequest = {
   from : User;

@@ -13,7 +13,7 @@ type Metadata = {
 };
 
 type Token_common = actor {
-  metadata: shared query (token : TokenIdentifier) -> async Result<Metadata, NoTokenError>;
+  metadata: shared query (token : TokenIdentifier) -> async Result<Metadata, CommonError>;
 
-  supply: shared query (token : TokenIdentifier) -> async Result<Balance, NoTokenError>;
+  supply: shared query (token : TokenIdentifier) -> async Result<Balance, CommonError>;
 };

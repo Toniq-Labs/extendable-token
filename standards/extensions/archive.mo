@@ -23,5 +23,5 @@ type TransactionsRequest = {
 type add = shared (request : TransferRequest) -> TransactionId;
 
 type Token_archive = actor {
-  public transactions: shared query (request : TransactionsRequest) -> async Result<[Transaction], NoTokenError>;
+  public transactions: shared query (request : TransactionsRequest) -> async Result<[Transaction], CommonError>;
 };

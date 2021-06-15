@@ -25,5 +25,5 @@ type IsAuthorizedRequest = {
 type Token_allowance = actor {
   updateOperator : shared (request : OperatorRequest) -> async OperatorResponse;
   
-  isAuthorized : shared (request : IsAuthorizedRequest) -> async Result<Bool, NoTokenError>;
+  isAuthorized : shared (request : IsAuthorizedRequest) -> async Result<Bool, CommonError>;
 };
