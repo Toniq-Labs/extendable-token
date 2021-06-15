@@ -9,7 +9,6 @@ This token standard provides a ERC1155/multi-token-like approach with extensions
 
 You can view some of the extensions [here](EXTENSIONS.md).
 
-# EXT Standard - Extensions
 * allowance - ERC20 like allowances
 * archive - Transaction archive
 * batch - Batch transfer/balance functions
