@@ -4,8 +4,8 @@
 This token standard provides a ERC1155/multi-token-like approach with extensions that can add additional functionality based on the purpose of the token. EXT Standard allows for the following features:
 1. Multiple tokens (which can be a mix, e.g. fungible and non-fungible) within a single canister. This provides better computation/gas savings and can reduce complexities.
 2. `transferAndCall`-like approach for more streamlined usage (e.g. doesn't require allow + transferFrom to send to an exchange).
-3. Supports both native addresses (64 long hex) and principals. Developer's can choose to reject one style and return an error if they wish.
-4. EXT Standard provides a method to query a tokens capabilities to aid in deciding how to communicate with it.
+3. Supports both native addresses (64 long hex) and principals. Developers can choose to reject one style and return an error if they wish.
+4. EXT Standard provides a method to query a token's capabilities to aid in deciding how to communicate with it.
 
 You can view some of the extensions [here](EXTENSIONS.md).
 
@@ -19,9 +19,9 @@ You can view some of the extensions [here](EXTENSIONS.md).
 * subscribe - Provide interface for notification subscription
 
 ## Rationale
-Tokens can be used in a wide variety of circumstances, from cryptocurrency ledgers to in-game assets and more. These tokens can serve different purposes and therefore need to allow for a wide variety of functionalities. On the otherhand, 3rd party tools that need to integrate with tokens would benefit from a standardized interface.
+Tokens can be used in a wide variety of circumstances, from cryptocurrency ledgers to in-game assets and more. These tokens can serve different purposes and therefore need to allow for a wide variety of functionalities. On the other hand, 3rd party tools that need to integrate with tokens would benefit from a standardized interface.
 
-EXT Standard promotes modular development of tokens using extensions and a common core. Token developers can developer their tokens based on their exact use case, and 3rd party developers can build tools around these tokens using the standarized interfaces.
+EXT Standard promotes modular development of tokens using extensions and a common core. Token developers can developer their tokens based on their exact use case, and 3rd party developers can build tools around these tokens using the standardized interfaces.
 
 ## Interface Specification
 The ext-core standard requires the following public entry points:
@@ -51,7 +51,7 @@ type User = {
   #principal : Principal;
 }
 ```
-EXT supports both native addresses (64 long hex addresses) and principal's. Developers can choose not to allow `AccountIdentifier`'s by returning an error if one is supplied.
+EXT supports both native addresses (64 long hex addresses) and `Principal`s. Developers can choose not to allow `AccountIdentifier`s by returning an error if one is supplied.
 
 ### Balance
 ```
@@ -61,6 +61,7 @@ Balance refers to an amount of a particular `TokenIdentifier`. For the cases of 
 
 ### TokenIdentifier
 ```
+//TODO do we just use the index? how do we communicate with tokens from other canisters?
 type TokenIdentifier  = {
   canister : Principal;
   index : Nat32;
@@ -80,7 +81,7 @@ Extensions are simply text fields, e.g. "batch", "common" and "archive".
 ```
 type Memo : Blob;
 ```
-Represents a "payment" memo - data that can be transferred along with a transaction.
+Represents a "payment" memo/data which can be attached to a transaction.
 
 ### NotifyService
 ```
