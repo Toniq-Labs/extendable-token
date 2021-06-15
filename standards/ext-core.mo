@@ -1,12 +1,12 @@
+//SubAccount and AID to support native addresses
+type AccountIdentifier = Text;
+type SubAccount = [Nat8];
+
 // A user can be any principal or canister, which can hold a balance
 type User = {
   #address : AccountIdentifier; //No notification
   #principal : Principal; //defaults to sub account 0
 }
-
-type SubAccount = [Nat8];
-
-type AccountIdentifier = Text;
 
 // An amount of tokens, unbound
 type Balance = Nat;
@@ -48,17 +48,14 @@ type TransferRequest = {
   memo : ?Memo;
   notify : Bool;
 };
-type TransferResponse = {
-  #ok : Balance;
-  #err : {
-    #Unauthorized;
-    #InsufficientBalance;
-    #Rejected; //Rejected by canister
-    #InvalidToken: TokenIdentifier;
-    #CannotNotify: AccountIdentifier;
-    #Other : Text;
-  }
-};
+type TransferResponse = Result<Balance, {
+  #Unauthorized;
+  #InsufficientBalance;
+  #Rejected; //Rejected by canister
+  #InvalidToken: TokenIdentifier;
+  #CannotNotify: AccountIdentifier;
+  #Other : Text;
+}>;
 
 type Token = actor {
   extensions : shared query () -> async [Extension];
