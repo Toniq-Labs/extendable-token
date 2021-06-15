@@ -1,22 +1,18 @@
-# Extendable Core (ext-core) Token Standard
+# EXT Standard - Core (ext-core) - the extendable token standard
 
 Find below the standard ext-core interface for an extendable token built on the Internet Computer. This token standard provides a ERC1155/multi-token-like approach with extensions that can add additional functionality based on the purpose of the token.
 
 ## Rationale
-We believe that IC tokens should have an efficient standard interface at it's core (ext-core), which can be extended in a standardized way to provide developers with a range of common interfaces to meet the needs of their tokens. Some other features include:
-1. Transfer notifications via a `NotifyService` - this sends tx details to the receiver
-2. 
+Tokens can be used in a wide variety of circumstances, from cryptocurrencies ledgers to in game assets and more. These tokens can serve different purposes and therefore need to allow for a wide variety of functionality. On the otherhand, 3rd party tools that need to integrate with tokens would benefit from a standardised interface.
+
+Our Extended Token promotes modular development of tokens using standardised extensions (as well as our standardised core), providing developers with a more streamlined approach to development of the token ecosystem. We start with our base token standard `ext-core`, which can be extended using any of our standardised extensions.
 
 ## Interface Specification
-The ic-fungible-token standard requires the following public entry points:
+The ext-core standard requires the following public entry points:
 
 ```
 type Token = actor {
   extensions : shared query () -> async [Extension];
-  
-  metadata: shared query (tokenId : TokenId) -> async MetadataResponse;
-
-  supply: shared query (tokenId : TokenId) -> async SupplyResponse;
     
   balance: shared query (request : BalanceRequest) -> async BalanceResponse;
       
