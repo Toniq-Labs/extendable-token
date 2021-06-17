@@ -65,36 +65,36 @@ module ExtCore = {
     transfer: shared (request : TransferRequest) -> async TransferResponse;
   };
   
-  module TokenIdentifier = {
+  public module TokenIdentifier = {
     private let tds : [Nat8] = [10, 116, 105, 100]; //b"\x0Atid"
     
     let equal = Text.equal;
     let hash = Text.hash;
     
-    func fromText(t : Text, i : TokenIndex) : TokenIdentifier {
+    public func fromText(t : Text, i : TokenIndex) : TokenIdentifier {
       return fromPrincipal(Principal.fromText(t), i);
     };
-    func fromPrincipal(p : Principal, i : TokenIndex) : TokenIdentifier {
+    public func fromPrincipal(p : Principal, i : TokenIndex) : TokenIdentifier {
       return fromBlob(Principal.toBlob(p), i);
     };
-    func fromBlob(b : Blob, i : TokenIndex) : TokenIdentifier {
+    public func fromBlob(b : Blob, i : TokenIndex) : TokenIdentifier {
       return fromBytes(Blob.toArray(b), i);
     };
-    func fromBytes(c : [Nat8], i : TokenIndex) : TokenIdentifier {
+    public func fromBytes(c : [Nat8], i : TokenIndex) : TokenIdentifier {
       let bytes : [Nat8] = Array.append(Array.append(tds, c), nat32tobytes(i));
       let crc : [Nat8] = CRC32.crc32(bytes);
       return Hex.encode(Array.append(crc, bytes));
     };
     //Coz can't get principal directly, we can compare the bytes
-    func isPrincipal(tid : TokenIdentifier, p : Principal) : Bool {
+    public func isPrincipal(tid : TokenIdentifier, p : Principal) : Bool {
       let d = decode(tid);
       return Blob.equal(Blob.fromArray(d.0), Principal.toBlob(p));
     };
-    func getIndex(tid : TokenIdentifier) : TokenIndex {
+    public func getIndex(tid : TokenIdentifier) : TokenIndex {
       let d = decode(tid);
       d.1;
     };
-    func decode(tid : TokenIdentifier) : ([Nat8], TokenIndex) {
+    public func decode(tid : TokenIdentifier) : ([Nat8], TokenIndex) {
       let bytes = Hex.decode(tid);
       var index : Nat8 = 0;
       var len : Nat8 = 0;
@@ -151,8 +151,16 @@ module ExtCore = {
     };
   };
   
-  module User = {
-    func equal(x : User, y : User) : Bool {
+  public module User = {
+    public func toAID(user : User) : AccountIdentifier {
+      switch(user) {
+        case (#address address) address;
+        case (#principal principal) {
+          AID.fromPrincipal(principal, null);
+        };
+      };
+    };
+    public func equal(x : User, y : User) : Bool {
       let _x = switch(x) {
         case (#address address) address;
         case (#principal principal) {
@@ -167,7 +175,7 @@ module ExtCore = {
       };
       return AID.equal(_x, _y);
     };
-    func hash(x : User) : Hash.Hash {
+    public func hash(x : User) : Hash.Hash {
       let _x = switch(x) {
         case (#address address) address;
         case (#principal principal) {
