@@ -15,6 +15,10 @@
 
    Provides `metadata` and `supply` queries. More to come...
    
+* fee - Allow 3rd parties to query for a fee prior to sending
+
+   Allows the charging of fees
+   
 * ledger - ICP Ledger-like interface
 
    Aims to provide a ICP ledger-like interface to make integration with exchanges via rosettaApi much easier.

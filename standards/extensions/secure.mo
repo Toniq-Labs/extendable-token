@@ -1,4 +1,4 @@
-//Secure - removes queries
+//Secure - replaces queries
 type Token_secure = actor {
   extensions_secure : shared () -> async [Extension];
   

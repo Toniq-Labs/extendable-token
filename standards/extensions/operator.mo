@@ -9,11 +9,11 @@ type OperatorAction = {
 };
 
 type OperatorRequest = {
-  owner: User;
+  subaccount: ?SubAccount;
   operators: [(Principal, OperatorAction)]
 };
 
-type OperatorResponse = Result.Result<(), {
+type OperatorResponse = Result<(), {
   #Unauthorized;
 }>;
 type IsAuthorizedRequest = {

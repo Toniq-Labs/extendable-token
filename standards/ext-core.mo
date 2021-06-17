@@ -9,7 +9,7 @@ type SubAccount = [Nat8];
 type User = {
   #address : AccountIdentifier; //No notification
   #principal : Principal; //defaults to sub account 0
-}
+};
 
 // An amount of tokens, unbound
 type Balance = Nat;
@@ -29,7 +29,9 @@ type Extension = Text;
 type Memo : Blob;
 
 //Call back for notifications
-type NotifyService = actor { tokenTransferNotification : shared (TokenIdentifier, User, Balance, ?Memo) -> async ?Balance)};
+type NotifyCallback = shared (TokenIdentifier, User, Balance, Memo) -> async ?Balance;
+type NotifyService = actor { tokenTransferNotification : NotifyCallback};
+
 
 //Common error respone
 type CommonError = {
@@ -49,11 +51,12 @@ type TransferRequest = {
   to : User;
   token : TokenIdentifier;
   amount : Balance;
-  memo : ?Memo;
+  memo : Memo;
   notify : Bool;
+  subaccount : ?SubAccount;
 };
 type TransferResponse = Result<Balance, {
-  #Unauthorized;
+  #Unauthorized: AccountIdentifier;
   #InsufficientBalance;
   #Rejected; //Rejected by canister
   #InvalidToken: TokenIdentifier;
@@ -62,9 +65,9 @@ type TransferResponse = Result<Balance, {
 }>;
 
 type Token = actor {
-  extensions : shared query () -> async [Extension];
+  extensions : query () -> async [Extension];
 
-  balance: shared query (request : BalanceRequest) -> async BalanceResponse;
+  balance: query (request : BalanceRequest) -> async BalanceResponse;
       
   transfer: shared (request : TransferRequest) -> async TransferResponse;
 };

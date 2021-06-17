@@ -11,17 +11,17 @@ type Transaction = {
 type TransactionsRequest = {
   query : {
     #txid : TransactionId;
-    #user : ;
-    #date : (DatUsere, Nat64);
-    #page : (Nat, Nat);
+    #user : User;
+    #date : (Date, Date); //from - to
+    #page : (Nat, Nat); // all per page - page
     #all;
   }
   token : TokenIdentifier;
 };
 
 //Private/internal add function for archive
-type add = shared (request : TransferRequest) -> TransactionId;
 
 type Token_archive = actor {
-  public transactions: shared query (request : TransactionsRequest) -> async Result<[Transaction], CommonError>;
+  add : shared (request : TransferRequest) -> TransactionId;
+  transactions : query (request : TransactionsRequest) -> async Result<[Transaction], CommonError>;
 };
