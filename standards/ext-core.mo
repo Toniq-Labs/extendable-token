@@ -15,10 +15,11 @@ type User = {
 type Balance = Nat;
 
 // A global uninque id for a token
-type TokenIdentifier  = {
-  canister : Principal;
-  index : Nat32;
-};
+//hex encoded, domain seperator + canister id + token index, variable length
+type TokenIdentifier  = Text;
+
+//A canister unique index of each token. This allows for 2**32 individual tokens
+type TokenIndex = Nat32;
 
 // Extension nane, e.g. 'batch' for batch requests
 type Extension = Text;

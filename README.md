@@ -65,15 +65,15 @@ Balance refers to an amount of a particular `TokenIdentifier`. For the cases of 
 
 ### TokenIdentifier
 ```
-//TODO do we just use the index? how do we communicate with tokens from other canisters?
-type TokenIdentifier  = {
-  canister : Principal;
-  index : Nat32;
-};
+type TokenIdentifier  = Text;
 ```
-The `TokenIdentifier` is a unique id for a particular token and reflects the canister where the token exists as well as the index within the tokens container within the provided canister. If a canister only holds a single token type, then this index would be 0.
+The `TokenIdentifier` is a unique id for a particular token and reflects the canister where the token exists as well as the index within the tokens container. The TokenIdentifier is similar to the token's address, and is a hex encoded representation of the canister's ID, the index of the token within the canister, and a domain seperator.
 
-We may change this TokenIdentifier into hex/text form for better handling via 3rd party tools.
+### TokenIndex
+```
+type TokenIndex = Nat32;
+```
+This allows for 2**32 unique tokens within a single canister (over 4 billion). This represents an individual token's index within a given canister.
 
 ### Extension
 ```
