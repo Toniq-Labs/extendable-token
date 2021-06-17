@@ -132,9 +132,10 @@ type TransferRequest = {
   amount : Balance;
   memo : ?Memo;
   notify : ?Bool;
+  subaccount : ?SubAccount;
 };
 type TransferResponse = Result<Balance, {
-  #Unauthorized;
+  #Unauthorized: AccountIdentifier;
   #InsufficientBalance;
   #Rejected; //Rejected by canister
   #InvalidToken: TokenIdentifier;
