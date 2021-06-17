@@ -4,8 +4,9 @@
 This token standard provides a ERC1155/multi-token-like approach with extensions that can add additional functionality based on the purpose of the token. EXT Standard allows for the following features:
 1. Multiple tokens (which can be a mix, e.g. fungible and non-fungible) within a single canister. This provides better computation/gas savings and can reduce complexities.
 2. Bulit-in transfer notifications for more streamlined usage (e.g. similar to `transferAndCall`).
-3. Supports both native addresses (64 long hex) and `Principal`s. Developers can choose to reject one style and return an error if they wish (e.g. only working with `Principal`s)
+3. Supports both native `AccountIdentifier`s (64 long hex strings) and `Principal`s. EXT integrates well with both address styles making it easier for end users to interact with.
 4. Extendable standard with a method to query a token's capabilities to aid in deciding how to communicate with it (better integration with 3rd party tools).
+5. A unique `TokenIdentifier` is generated for each token with a canister (e.g. cnvzt-kikor-uwiaa-aaaaa-b4aah-eaqca-aaaaa-a) which is constructed using the canister ID and the token index within the canister. The canister ID can also be used which would point to the 0 index token (perfect if you have a single token like the [erc20 example](examples/erc20.mo)
 
 Here are some of the initial extensions we are working on:
 
@@ -13,6 +14,7 @@ Here are some of the initial extensions we are working on:
 * archive - Transaction archive
 * batch - Batch transfer/balance functions
 * common - Some common token methods (metadata, supply)
+* fee - A way to provide a standard fee
 * ledger - ICP Ledger-like interface
 * operator - Operator's for spending tokens
 * secure - Add's update calls for common queries (more secure)
@@ -26,6 +28,8 @@ You can view more details [here](EXTENSIONS.md).
 Tokens can be used in a wide variety of circumstances, from cryptocurrency ledgers to in-game assets and more. These tokens can serve different purposes and therefore need to allow for a wide variety of functionalities. On the other hand, 3rd party tools that need to integrate with tokens would benefit from a standardized interface.
 
 EXT Standard promotes modular development of tokens using extensions and a common core. Token developers can developer their tokens based on their exact use case, and 3rd party developers can build tools around these tokens using the standardized interfaces.
+
+This repo contains our core standard and a number of initial extensions. We have added a full motoko library of these modules, and have provided some [examples](examples). We are also developing a basic JS library to easily integrate EXT with your applications.
 
 ## Interface Specification
 The ext-core standard requires the following public entry points:
@@ -41,12 +45,12 @@ type Token = actor {
 ```
 
 ## Types
-### Native addresses
+### Native ICP Ledger types
 ```
 type AccountIdentifier = Text;
 type SubAccount = [Nat8];
 ```
-Basic support for ICP Ledger `AccountIdentifier`'s and `SubAccount`'s.
+Basic support for ICP Ledger `AccountIdentifier`s (64 long hex addresses) and `SubAccount`s (an index for a Principal).
 
 ### User
 ```
@@ -55,7 +59,7 @@ type User = {
   #principal : Principal;
 }
 ```
-EXT supports both native addresses (64 long hex addresses) and `Principal`s. Developers can choose not to allow `AccountIdentifier`s by returning an error if one is supplied.
+EXT supports both native `AccountIdentifier`s (64 long hex addresses) and `Principal`s. EXT contains methods to check equality and generate a hash of a User. We advise storing balances against the AccountIdentifier as a Principal can be easily converted to one (using the default 0 index).
 
 ### Balance
 ```
@@ -65,15 +69,16 @@ Balance refers to an amount of a particular `TokenIdentifier`. For the cases of 
 
 ### TokenIdentifier
 ```
+// \x0Atid" + canisterId + 32 bit index
 type TokenIdentifier  = Text;
 ```
-The `TokenIdentifier` is a unique id for a particular token and reflects the canister where the token exists as well as the index within the tokens container. The TokenIdentifier is similar to the token's address, and is a hex encoded representation of the canister's ID, the index of the token within the canister, and a domain seperator.
+The `TokenIdentifier` is a unique id for a particular token and reflects the canister where the token exists as well as the index within the tokens container. The TokenIdentifier is similar to a `Principal` and is a representation of the canister's ID, the index of the token within the canister, and a domain seperator.
 
 ### TokenIndex
 ```
 type TokenIndex = Nat32;
 ```
-This allows for 2**32 unique tokens within a single canister (over 4 billion). This represents an individual token's index within a given canister.
+This allows for 2\*\*32 unique tokens within a single canister (over 4 billion). This represents an individual token's index within a given canister.
 
 ### Extension
 ```
@@ -89,10 +94,11 @@ Represents a "payment" memo/data which can be attached to a transaction.
 
 ### NotifyService
 ```
-type NotifyService = actor { tokenTransferNotification : shared (TokenIdentifier, User, Balance, ?Memo) -> async ?Balance)};
+type NotifyCallback = shared (TokenIdentifier, User, Balance, Memo) -> async ?Balance;
+type NotifyService = actor { tokenTransferNotification : NotifyCallback) -> async ?Balance)};
 //e.g. (tokenId, from, amount, memo)
 ```
-This is the public call that a canister must contain to receive a transfer notification.
+This is the public call that a canister must contain to receive a transfer notification. The amount returned is the balance actually accepted.
 
 ### Common Error
 ```
