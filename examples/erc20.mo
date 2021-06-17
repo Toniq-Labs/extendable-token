@@ -10,7 +10,6 @@ import Cycles "mo:base/ExperimentalCycles";
 import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
-import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 
 import ExtCore "../motoko/ext/Core";
