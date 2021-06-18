@@ -11,10 +11,13 @@ import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Iter "mo:base/Iter";
-import AID "./util/AccountIdentifier";
-import ExtCore "./ext/Core";
-import ExtCommon "./ext/Common";
-import ExtAllowance "./ext/Allowance";
+
+//Get the path right
+import AID "../motoko/util/AccountIdentifier";
+import ExtCore "../motoko/ext/Core";
+import ExtCommon "../motoko/ext/Common";
+import ExtAllowance "../motoko/ext/Allowance";
+
 
 actor erc20_token {
   
