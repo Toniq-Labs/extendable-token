@@ -70,7 +70,7 @@ module ExtCore = {
     
     let equal = Text.equal;
     let hash = Text.hash;
-    
+    /*
     public func fromText(t : Text, i : TokenIndex) : TokenIdentifier {
       return fromPrincipal(Principal.fromText(t), i);
     };
@@ -82,9 +82,9 @@ module ExtCore = {
     };
     public func fromBytes(c : [Nat8], i : TokenIndex) : TokenIdentifier {
       let bytes : [Nat8] = Array.append(Array.append(tds, c), nat32tobytes(i));
-      let crc : [Nat8] = CRC32.crc32(bytes);
       return Hex.encode(Array.append(crc, bytes));
     };
+    */
     //Coz can't get principal directly, we can compare the bytes
     public func isPrincipal(tid : TokenIdentifier, p : Principal) : Bool {
       let d = decode(tid);

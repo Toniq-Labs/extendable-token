@@ -11,10 +11,10 @@ import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
 import Result "mo:base/Result";
 import Iter "mo:base/Iter";
-
-import ExtCore "../motoko/ext/Core";
-import ExtCommon "../motoko/ext/Common";
-import ExtAllowance "../motoko/ext/Allowance";
+import AID "./util/AccountIdentifier";
+import ExtCore "./ext/Core";
+import ExtCommon "./ext/Common";
+import ExtAllowance "./ext/Allowance";
 
 actor erc20_token {
   
@@ -41,7 +41,7 @@ actor erc20_token {
   //Initial state - could set via class setter
   private stable let METADATA : Metadata = #fungible({
     name = "Wrapped ETH";
-    symbol = "wETG";
+    symbol = "wETC";
     decimals = 18;
     metadata = null;
   }); 
@@ -78,7 +78,7 @@ actor erc20_token {
                     if (spender_allowance < request.amount) {
                       return #err(#Other("Spender allowance exhausted"));
                     } else {
-                      var spender_allowance_new = spender_allowance - request.amount;
+                      var spender_allowance_new : Balance = spender_allowance - request.amount;
                       owner_allowances.put(msg.caller, spender_allowance_new);
                       _allowances.put(owner, owner_allowances);
                     };
@@ -94,7 +94,7 @@ actor erc20_token {
             };
           };
           
-          var owner_balance_new = owner_balance - request.amount;
+          var owner_balance_new : Balance = owner_balance - request.amount;
           _balances.put(owner, owner_balance_new);
           var receiver_balance_new = switch (_balances.get(receiver)) {
             case (?receiver_balance) {
@@ -104,7 +104,7 @@ actor erc20_token {
                 request.amount;
             };
           };
-          balances.put(receiver, receiver_balance_new);
+          _balances.put(receiver, receiver_balance_new);
           return #ok(request.amount);
         } else {
           return #err(#InsufficientBalance);
@@ -142,7 +142,7 @@ actor erc20_token {
         return #ok(balance);
       };
       case (_) {
-        return #err(#other("User not found"));
+        return #err(#Other("User not found"));
       };
     }
   };
@@ -152,7 +152,7 @@ actor erc20_token {
   };
   
   public query func metadata(token : TokenIdentifier) : async Result.Result<Metadata, CommonError> {
-    #ok(WTCMETADATA);
+    #ok(METADATA);
   };
   
   //Internal cycle management - good general case
