@@ -64,7 +64,7 @@ actor class erc20_token(init_name: Text, init_symbol: Text, init_decimals: Nat8,
   }); 
   private stable var _supply : Balance  = init_supply;
   
-  _balances.put(AID.fromPrincipal(_owner, null), _supply);
+  _balances.put(AID.fromPrincipal(init_owner, null), _supply);
 
   public shared(msg) func transfer(request: TransferRequest) : async TransferResponse {
     let owner = ExtCore.User.toAID(request.from);
@@ -147,7 +147,7 @@ actor class erc20_token(init_name: Text, init_symbol: Text, init_decimals: Nat8,
         return #ok(balance);
       };
       case (_) {
-        return #ok(0);;
+        return #ok(0);
       };
     }
   };
