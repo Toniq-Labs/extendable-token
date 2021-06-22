@@ -18,8 +18,7 @@ import ExtCore "../motoko/ext/Core";
 import ExtCommon "../motoko/ext/Common";
 import ExtAllowance "../motoko/ext/Allowance";
 
-
-actor erc20_token {
+actor class erc20_token(init_name: Text, init_symbol: Text, init_decimals: Nat8, init_supply: ExtCore.Balance, init_owner: Principal) {
   
   // Types
   type AccountIdentifier = ExtCore.AccountIdentifier;
@@ -41,16 +40,8 @@ actor erc20_token {
   
   private let EXTENSIONS : [Extension] = ["@ext/common", "@ext/allowance"];
 
-  //Initial state - could set via class setter
-  private stable let METADATA : Metadata = #fungible({
-    name = "Wrapped ETH";
-    symbol = "wETC";
-    decimals = 18;
-    metadata = null;
-  }); 
   
   //State work
-  private stable var _supply : Balance  = 0;
   private stable var _balancesState : [(AccountIdentifier, Balance)] = [];
   private var _balances : HashMap.HashMap<AccountIdentifier, Balance> = HashMap.fromIter(_balancesState.vals(), 0, AID.equal, AID.hash);
   private var _allowances = HashMap.HashMap<AccountIdentifier, HashMap.HashMap<Principal, Balance>>(1, AID.equal, AID.hash);
@@ -63,6 +54,17 @@ actor erc20_token {
   system func postupgrade() {
     _balancesState := [];
   };
+  
+    //Initial state - could set via class setter
+  private stable let METADATA : Metadata = #fungible({
+    name = init_name;
+    symbol = init_symbol;
+    decimals = init_decimals;
+    metadata = null;
+  }); 
+  private stable var _supply : Balance  = init_supply;
+  
+  _balances.put(AID.fromPrincipal(_owner, null), _supply);
 
   public shared(msg) func transfer(request: TransferRequest) : async TransferResponse {
     let owner = ExtCore.User.toAID(request.from);
@@ -145,7 +147,7 @@ actor erc20_token {
         return #ok(balance);
       };
       case (_) {
-        return #err(#Other("User not found"));
+        return #ok(0);;
       };
     }
   };
