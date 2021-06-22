@@ -65,6 +65,15 @@ module ExtCore = {
     transfer: shared (request : TransferRequest) -> async TransferResponse;
   };
   
+  public module TokenIndex = {
+    public func equal(x : TokenIndex, y : TokenIndex) : Bool {
+      return Nat32.equal(x, y);
+    };
+    public func hash(x : TokenIndex) : Hash.Hash {
+      return x;
+    };
+  };
+  
   public module TokenIdentifier = {
     private let tds : [Nat8] = [10, 116, 105, 100]; //b"\x0Atid"
     
