@@ -25,6 +25,10 @@ module ExtCore = {
   public type Balance = Nat;
   public type TokenIdentifier  = Text;
   public type TokenIndex = Nat32;
+  public type TokenObj = {
+    index : TokenIndex;
+    canister : [Nat8];
+  };
   public type Extension = Text;
   public type Memo = Blob;
   public type NotifyCallback = shared (TokenIdentifier, User, Balance, Memo) -> async ?Balance;
@@ -76,7 +80,6 @@ module ExtCore = {
   
   public module TokenIdentifier = {
     private let tds : [Nat8] = [10, 116, 105, 100]; //b"\x0Atid"
-    
     let equal = Text.equal;
     let hash = Text.hash;
     /*
@@ -96,33 +99,37 @@ module ExtCore = {
     */
     //Coz can't get principal directly, we can compare the bytes
     public func isPrincipal(tid : TokenIdentifier, p : Principal) : Bool {
-      let d = decode(tid);
-      return Blob.equal(Blob.fromArray(d.0), Principal.toBlob(p));
+      let tobj = decode(tid);
+      return Blob.equal(Blob.fromArray(tobj.canister), Principal.toBlob(p));
     };
     public func getIndex(tid : TokenIdentifier) : TokenIndex {
-      let d = decode(tid);
-      d.1;
+      let tobj = decode(tid);
+      tobj.index;
     };
-    public func decode(tid : TokenIdentifier) : ([Nat8], TokenIndex) {
-      let bytes = Hex.decode(tid);
+    public func decode(tid : TokenIdentifier) : TokenObj {
+      let bytes = Blob.toArray(Principal.toBlob(Principal.fromText(tid)));
       var index : Nat8 = 0;
-      var len : Nat8 = 0;
-      var ti : [Nat8] = [];
-      var ca : [Nat8] = [];
+      var _canister : [Nat8] = [];
+      var _token_index : [Nat8] = [];
+      var length : Nat8 = 0;
+      for (b in bytes.vals()) {
+        length += 1;
+      };
       for (b in bytes.vals()) {
         index += 1;
-        if (index == 10) {
-          len := b;
-        } else if (index > 10) {
-          if (index <= (10 + len)) {
-            ti := Array.append(ti, [b]);
+        if (index >= 5) {
+          if (index <= (length - 4)) {            
+            _canister := Array.append(_canister, [b]);
           } else {
-            ca := Array.append(ca, [b]);
+            _token_index := Array.append(_token_index, [b]);
           };
         };
       };
-      //Can't get principal from bytes?
-      return (ca, bytestonat32(ti));
+      let v : TokenObj = {
+        index = bytestonat32(_token_index);
+        canister = _canister;
+      };
+      return v;
     };
     
     private func bytestonat32(b : [Nat8]) : Nat32 {

@@ -43,13 +43,14 @@ module {
         map.put(uppercase, Nat8.fromNat(uppercase-65+10));
     };
     let p = Iter.toArray(Iter.map(Text.toIter(t), func (x: Char) : Nat { Nat32.toNat(Char.toNat32(x)) }));
-    var res : [var Nat8] = [var];
-    for (i in Iter.range(4, 31)) {            
+    var res : [var Nat8] = [var];       
+    for (i in Iter.range(0, 31)) {            
         let a = Option.unwrap(map.get(p[i*2]));
         let b = Option.unwrap(map.get(p[i*2 + 1]));
         let c = 16*a + b;
         res := Array.thaw(Array.append(Array.freeze(res), Array.make(c)));
     };
-    return Array.freeze(res)
+    let result = Array.freeze(res);
+    return result;
   };
 };
