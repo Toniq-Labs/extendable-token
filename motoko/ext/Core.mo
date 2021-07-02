@@ -31,8 +31,6 @@ module ExtCore = {
   };
   public type Extension = Text;
   public type Memo = Blob;
-  public type NotifyCallback = shared (TokenIdentifier, User, Balance, Memo) -> async ?Balance;
-  public type NotifyService = actor { tokenTransferNotification : NotifyCallback};
   public type CommonError = {
     #InvalidToken: TokenIdentifier;
     #Other : Text;
@@ -60,6 +58,8 @@ module ExtCore = {
     #CannotNotify: AccountIdentifier;
     #Other : Text;
   }>;
+  public type NotifyCallback = shared (TransferRequest) -> async ?Balance;
+  public type NotifyService = actor { tokenTransferNotification : NotifyCallback};
 
   public type Service = actor {
     extensions : query () -> async [Extension];
@@ -174,6 +174,12 @@ module ExtCore = {
         case (#principal principal) {
           AID.fromPrincipal(principal, null);
         };
+      };
+    };
+    public func toPrincipal(user : User) : ?Principal {
+      switch(user) {
+        case (#address address) null;
+        case (#principal principal) principal;
       };
     };
     public func equal(x : User, y : User) : Bool {
