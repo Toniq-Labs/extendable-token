@@ -58,7 +58,7 @@ module ExtCore = {
     #CannotNotify: AccountIdentifier;
     #Other : Text;
   }>;
-  public type NotifyCallback = shared (TransferRequest) -> async ?Balance;
+  public type NotifyCallback = shared (TokenIdentifier, User, Balance, Memo) -> async ?Balance;
   public type NotifyService = actor { tokenTransferNotification : NotifyCallback};
 
   public type Service = actor {
@@ -111,9 +111,21 @@ module ExtCore = {
       var index : Nat8 = 0;
       var _canister : [Nat8] = [];
       var _token_index : [Nat8] = [];
+      var _tdscheck : [Nat8] = [];
       var length : Nat8 = 0;
       for (b in bytes.vals()) {
         length += 1;
+        if (length <= 4) {
+          _tdscheck := Array.append(_tdscheck, [b]);
+        };
+        if (length == 4) {
+          if (Array.equal(_tdscheck, tds, Nat8.equal) == false) {
+            return {
+              index = 0;
+              canister = bytes;
+            };
+          };
+        };
       };
       for (b in bytes.vals()) {
         index += 1;
@@ -179,7 +191,7 @@ module ExtCore = {
     public func toPrincipal(user : User) : ?Principal {
       switch(user) {
         case (#address address) null;
-        case (#principal principal) principal;
+        case (#principal principal) ?principal;
       };
     };
     public func equal(x : User, y : User) : Bool {
