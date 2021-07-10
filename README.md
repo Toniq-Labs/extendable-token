@@ -30,7 +30,7 @@ You can view more details [here](EXTENSIONS.md).
 We have a number of examples that you can use in the `examples` dirextory - all of these work with the EXT interface and can be added to a supporting wallet like Stoic:
 
 * [ERC20](examples/erc20.md) - an ERC20-like standard that is very basic
-* [ERC721](examples/erc271.md) - as per the above, except for NFTs specifically
+* [ERC721](examples/erc721.md) - as per the above, except for NFTs specifically
 * [Standard](examples/standard.md) - our standard single-token implementation with notifications
 * [Advanced](examples/advanced.md) - our advanced multi-token implementation
 
