@@ -6,7 +6,8 @@ This token standard provides a ERC1155/multi-token-like approach with extensions
 2. Bulit-in transfer notifications for more streamlined usage (e.g. similar to `transferAndCall`).
 3. Supports both native `AccountIdentifier`s (64 long hex strings) and `Principal`s. EXT integrates well with both address styles making it easier for end users to interact with.
 4. Extendable standard with a method to query a token's capabilities to aid in deciding how to communicate with it (better integration with 3rd party tools).
-5. A unique `TokenIdentifier` is generated for each token with a canister (e.g. cnvzt-kikor-uwiaa-aaaaa-b4aah-eaqca-aaaaa-a) which is constructed using the canister ID and the token index within the canister. The canister ID can also be used which would point to the 0 index token (perfect if you have a single token like the [erc20 example](examples/erc20.mo)
+5. A unique `TokenIdentifier` is generated for each token with a canister (e.g. cnvzt-kikor-uwiaa-aaaaa-b4aah-eaqca-aaaaa-a) which is constructed using the canister ID and the token index within the canister. The canister ID can also be used which would point to the 0 index token (perfect if you have a single token like the [erc20 example](examples/erc20.mo))
+6. WIP: Building a new core entrypoint named `exchange` to incorporate exchange mechanism directly into our core token standard
 
 Here are some of the initial extensions we are working on:
 
@@ -23,6 +24,15 @@ Here are some of the initial extensions we are working on:
 You can view more details [here](EXTENSIONS.md).
 
 **Please comment, submit PRs, publish your own extensions and collaborate with us to build this standard.**
+
+## Examples
+
+We have a number of examples that you can use in the `examples` dirextory - all of these work with the EXT interface and can be added to a supporting wallet like Stoic:
+
+* [ERC20](examples/erc20.md) - an ERC20-like standard that is very basic
+* [ERC721](examples/erc271.md) - as per the above, except for NFTs specifically
+* [Standard](examples/standard.md) - our standard single-token implementation with notifications
+* [Advanced](examples/advanced.md) - our advanced multi-token implementation
 
 ## Rationale
 Tokens can be used in a wide variety of circumstances, from cryptocurrency ledgers to in-game assets and more. These tokens can serve different purposes and therefore need to allow for a wide variety of functionalities. On the other hand, 3rd party tools that need to integrate with tokens would benefit from a standardized interface.
@@ -90,7 +100,7 @@ Extensions are simply text fields, e.g. "batch", "common" and "archive".
 ```
 type Memo : Blob;
 ```
-Represents a "payment" memo/data which can be attached to a transaction.
+Represents a "payment" memo/data which can be attached to a transaction. We hope that we can utilize native serialization/deserialization to allow for more advanced data to be stored in this way.
 
 ### NotifyService
 ```
@@ -98,7 +108,7 @@ type NotifyCallback = shared (TokenIdentifier, User, Balance, Memo) -> async ?Ba
 type NotifyService = actor { tokenTransferNotification : NotifyCallback) -> async ?Balance)};
 //e.g. (tokenId, from, amount, memo)
 ```
-This is the public call that a canister must contain to receive a transfer notification. The amount returned is the balance actually accepted.
+This is the public call that a canister must contain to receive a transfer notification. The amount returned is the balance actually accepted. If a transaction request has `notify` set to true but the receiver does not have the correct NotifyCallback then the tx is cancelled.
 
 ### Common Error
 ```
