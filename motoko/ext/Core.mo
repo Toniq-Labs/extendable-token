@@ -80,8 +80,8 @@ module ExtCore = {
   
   public module TokenIdentifier = {
     private let tds : [Nat8] = [10, 116, 105, 100]; //b"\x0Atid"
-    let equal = Text.equal;
-    let hash = Text.hash;
+    public let equal = Text.equal;
+    public let hash = Text.hash;
     /*
     public func fromText(t : Text, i : TokenIndex) : TokenIdentifier {
       return fromPrincipal(Principal.fromText(t), i);
@@ -145,10 +145,10 @@ module ExtCore = {
     };
     
     private func bytestonat32(b : [Nat8]) : Nat32 {
-      var index : Nat8 = 0;
+      var index : Nat32 = 0;
       Array.foldRight<Nat8, Nat32>(b, 0, func (u8, accum) {
         index += 1;
-        accum + Nat32.fromNat( Nat8.toNat( u8 << ( (index-1) * 8) ));
+        accum + Nat32.fromNat(Nat8.toNat(u8)) << ((index-1) * 8);
       });
     };
     private func nat32tobytes(n : Nat32) : [Nat8] {
