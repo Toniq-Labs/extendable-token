@@ -79,6 +79,7 @@ module ExtCore = {
   };
   
   public module TokenIdentifier = {
+    private let CANISTER_ID_HASH_LEN_IN_BYTES: Nat8 = 10;
     private let tds : [Nat8] = [10, 116, 105, 100]; //b"\x0Atid"
     public let equal = Text.equal;
     public let hash = Text.hash;
@@ -130,7 +131,7 @@ module ExtCore = {
       for (b in bytes.vals()) {
         index += 1;
         if (index >= 5) {
-          if (index <= (length - 4)) {            
+          if (index <= CANISTER_ID_HASH_LEN_IN_BYTES + 4) {            
             _canister := Array.append(_canister, [b]);
           } else {
             _token_index := Array.append(_token_index, [b]);
@@ -153,23 +154,20 @@ module ExtCore = {
     };
     private func nat32tobytes(n : Nat32) : [Nat8] {
       if (n < 256) {
-        return [1, Nat8.fromNat(Nat32.toNat(n))];
+        return [Nat8.fromNat(Nat32.toNat(n))];
       } else if (n < 65536) {
         return [
-          2,
           Nat8.fromNat(Nat32.toNat((n >> 8) & 0xFF)), 
           Nat8.fromNat(Nat32.toNat((n) & 0xFF))
         ];
       } else if (n < 16777216) {
         return [
-          3,
           Nat8.fromNat(Nat32.toNat((n >> 16) & 0xFF)), 
           Nat8.fromNat(Nat32.toNat((n >> 8) & 0xFF)), 
           Nat8.fromNat(Nat32.toNat((n) & 0xFF))
         ];
       } else {
         return [
-          4,
           Nat8.fromNat(Nat32.toNat((n >> 24) & 0xFF)), 
           Nat8.fromNat(Nat32.toNat((n >> 16) & 0xFF)), 
           Nat8.fromNat(Nat32.toNat((n >> 8) & 0xFF)), 
