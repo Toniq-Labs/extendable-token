@@ -12,5 +12,5 @@ type TransferRequest = {
 };
 
 type Token_fee = actor {
-  fee: (token : TokenIdentifier) -> async ();
+  ext_fee: (token : TokenIdentifier) -> async ();
 };

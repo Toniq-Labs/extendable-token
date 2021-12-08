@@ -11,6 +11,6 @@ module ExtFee = {
     subaccount : ?ExtCore.SubAccount;
   };
   public type Service = actor {
-    fee: (token : ExtCore.TokenIdentifier) -> async ();
+    ext_fee: (token : ExtCore.TokenIdentifier) -> async ();
   }
 };

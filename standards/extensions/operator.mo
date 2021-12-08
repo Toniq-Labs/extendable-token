@@ -23,7 +23,7 @@ type IsAuthorizedRequest = {
   amount: Balance;
 };
 type Token_allowance = actor {
-  updateOperator : shared (request : OperatorRequest) -> async OperatorResponse;
+  ext_updateOperator : shared (request : OperatorRequest) -> async OperatorResponse;
   
-  isAuthorized : shared (request : IsAuthorizedRequest) -> async Result<Bool, CommonError>;
+  ext_isAuthorized : shared (request : IsAuthorizedRequest) -> async Result<Bool, CommonError>;
 };

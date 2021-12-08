@@ -1,7 +1,7 @@
 # EXT Standard - Extensions
 * allowance - ERC20 like allowances
 
-   Allows developers to include ERC20 like `approve` and `allowance` methods. Developers can already use `transfer` instead of `transferFrom` as it has an existing `from` field.
+   Allows developers to include ERC20 like `approve` and `allowance` methods. Developers can already use `ext_transfer` instead of `transferFrom` as it has an existing `from` field.
 
 * archive - Transaction archive
 
@@ -9,11 +9,11 @@
    
 * batch - Batch transfer/balance functions
 
-   Provides `*_batch` methods for common calls to allow multiple operations per call.
+   Provides `ext_*_batch` methods for common calls to allow multiple operations per call.
    
 * common - Some common token methods
 
-   Provides `metadata` and `supply` queries. More to come...
+   Provides `ext_metadata` and `ext_supply` queries. More to come...
    
 * fee - Allow 3rd parties to query for a fee prior to sending
 
@@ -25,11 +25,11 @@
    
 * operator - Operator's for spending tokens
 
-   Adds operator methods `updateOperator` and `isAuthorized` to allow 3rd party operators to spend tokens (or more).
+   Adds operator methods `ext_updateOperator` and `ext_isAuthorized` to allow 3rd party operators to spend tokens (or more).
    
 * secure - Add's update calls for common queries (more secure)
 
-   Adds `balance_secure`, `supply_secure`, `metadata_secure` and `extensions_secure` - update calls as opposed to queries.
+   Adds `ext_balance_secure`, `ext_supply_secure`, `ext_metadata_secure` and `ext_extensions_secure` - update calls as opposed to queries.
    
 * subscribe - Provide interface for notification subscription
 

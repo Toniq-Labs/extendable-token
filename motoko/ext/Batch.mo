@@ -9,8 +9,8 @@ module ExtBatch = {
   };
 
   public type ValidActor = actor {
-    balance_batch: query (request : [ExtCore.BalanceRequest]) -> async Result.Result<[ExtCore.BalanceResponse], BatchError>;
+    ext_balance_batch: query (request : [ExtCore.BalanceRequest]) -> async Result.Result<[ExtCore.BalanceResponse], BatchError>;
         
-    transfer_batch: shared (request : [ExtCore.TransferRequest]) -> async Result.Result<[ExtCore.TransferResponse], BatchError>;
+    ext_transfer_batch: shared (request : [ExtCore.TransferRequest]) -> async Result.Result<[ExtCore.TransferResponse], BatchError>;
   };
 };

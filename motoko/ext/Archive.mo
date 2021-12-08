@@ -29,7 +29,7 @@ module ExtArchive = {
   };
   
   public type ValidActor = actor {
-  add : shared (request : TransferRequest) -> TransactionId;
-  transactions : query (request : TransactionsRequest) -> async Result.Result<[Transaction], ExtCore.CommonError>;
+   ext_add : shared (request : TransferRequest) -> TransactionId;
+   ext_transactions : query (request : TransactionsRequest) -> async Result.Result<[Transaction], ExtCore.CommonError>;
   };
 };

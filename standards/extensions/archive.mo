@@ -22,6 +22,6 @@ type TransactionsRequest = {
 //Private/internal add function for archive
 
 type Token_archive = actor {
-  add : shared (request : TransferRequest) -> TransactionId;
-  transactions : query (request : TransactionsRequest) -> async Result<[Transaction], CommonError>;
+  ext_add : shared (request : TransferRequest) -> TransactionId;
+  ext_transactions : query (request : TransactionsRequest) -> async Result<[Transaction], CommonError>;
 };

@@ -10,14 +10,14 @@ dfx deploy standard --argument="(\"Me Token\", \"MET\", 3, 100000000:nat, princi
 dfx canister id standard
 
 //Supply
-dfx canister call standard supply "(\"\")"
+dfx canister call standard ext_supply "(\"\")"
 
 //Metadata
-dfx canister call standard metadata "(\"\")"
+dfx canister call standard ext_metadata "(\"\")"
 
 //Balance - can query using the principal or address
-dfx canister call standard balance "(record { user = (variant { \"principal\" = principal \"sensj-ihxp6-tyvl7-7zwvj-fr42h-7ojjp-n7kxk-z6tvo-vxykp-umhfk-wqe\" }); token = \"\" } )"
-dfx canister call standard balance "(record { user = (variant { address = \"86d374abf9b9c532108cc15a7a9e6d21ac6dddd8d34b5babaf7e6244e6d1a638\" }); token = \"\" } )"
+dfx canister call standard ext_balance "(record { user = (variant { \"principal\" = principal \"sensj-ihxp6-tyvl7-7zwvj-fr42h-7ojjp-n7kxk-z6tvo-vxykp-umhfk-wqe\" }); token = \"\" } )"
+dfx canister call standard ext_balance "(record { user = (variant { address = \"86d374abf9b9c532108cc15a7a9e6d21ac6dddd8d34b5babaf7e6244e6d1a638\" }); token = \"\" } )"
 ```
 ## Deploy live and load into Stoic
 To deploy live, you would follow the same as above except you should:

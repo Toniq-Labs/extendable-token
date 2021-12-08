@@ -62,11 +62,11 @@ module ExtCore = {
   public type NotifyService = actor { tokenTransferNotification : NotifyCallback};
 
   public type Service = actor {
-    extensions : query () -> async [Extension];
+    ext_extensions : query () -> async [Extension];
 
-    balance: query (request : BalanceRequest) -> async BalanceResponse;
+    ext_balance: query (request : BalanceRequest) -> async BalanceResponse;
         
-    transfer: shared (request : TransferRequest) -> async TransferResponse;
+    ext_transfer: shared (request : TransferRequest) -> async TransferResponse;
   };
   
   public module TokenIndex = {
