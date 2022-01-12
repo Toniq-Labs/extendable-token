@@ -17,19 +17,19 @@ module ExtArchive = {
     date : Date;
   };
 
-  public type TransactionRequest = {
-    query : {
+  public type TransactionsRequest = {
+    query_option : { // original "query" is reserved key word
       #txid : TransactionId;
       #user : ExtCore.User;
       #date : (Date, Date); //from - to
       #page : (Nat, Nat); // all per page - page
       #all;
-    }
-    token : TokenIdentifier;
+    };
+    token : ExtCore.TokenIdentifier;
   };
   
   public type ValidActor = actor {
-  add : shared (request : TransferRequest) -> TransactionId;
-  transactions : query (request : TransactionsRequest) -> async Result.Result<[Transaction], ExtCore.CommonError>;
+    add : shared (request : ExtCore.TransferRequest) -> async TransactionId;
+    transactions : query (request : TransactionsRequest) -> async Result.Result<[Transaction], ExtCore.CommonError>;
   };
 };
