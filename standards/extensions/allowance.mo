@@ -14,7 +14,6 @@ type ApproveRequest = {
 };
 
 type Token_allowance = actor {
-  allowance: shared query (request : AllowanceRequest) -> async async Result<Balance, CommonError>;
-      
-  approve: shared (request : ApproveRequest) -> async ();
+  ext_allowance: shared query (request : AllowanceRequest) -> async async Result<Balance, CommonError>;
+  ext_approve: shared (request : ApproveRequest) -> async ();
 };

@@ -66,6 +66,62 @@ actor class erc20_token(init_name: Text, init_symbol: Text, init_decimals: Nat8,
   
   _balances.put(AID.fromPrincipal(init_owner, null), _supply);
 
+  public shared(msg) func ext_transfer(request: TransferRequest) : async TransferResponse {
+    let owner = ExtCore.User.toAID(request.from);
+    let spender = AID.fromPrincipal(msg.caller, request.subaccount);
+    let receiver = ExtCore.User.toAID(request.to);
+    
+    switch (_balances.get(owner)) {
+      case (?owner_balance) {
+        if (owner_balance >= request.amount) {
+          if (AID.equal(owner, spender) == false) {
+            //Operator is not owner, so we need to validate here
+            switch (_allowances.get(owner)) {
+              case (?owner_allowances) {
+                switch (owner_allowances.get(msg.caller)) {
+                  case (?spender_allowance) {
+                    if (spender_allowance < request.amount) {
+                      return #err(#Other("Spender allowance exhausted"));
+                    } else {
+                      var spender_allowance_new : Balance = spender_allowance - request.amount;
+                      owner_allowances.put(msg.caller, spender_allowance_new);
+                      _allowances.put(owner, owner_allowances);
+                    };
+                  };
+                  case (_) {
+                    return #err(#Unauthorized(spender));
+                  };
+                };
+              };
+              case (_) {
+                return #err(#Unauthorized(spender));
+              };
+            };
+          };
+          
+          var owner_balance_new : Balance = owner_balance - request.amount;
+          _balances.put(owner, owner_balance_new);
+          var receiver_balance_new = switch (_balances.get(receiver)) {
+            case (?receiver_balance) {
+                receiver_balance + request.amount;
+            };
+            case (_) {
+                request.amount;
+            };
+          };
+          _balances.put(receiver, receiver_balance_new);
+          return #ok(request.amount);
+        } else {
+          return #err(#InsufficientBalance);
+        };
+      };
+      case (_) {
+        return #err(#InsufficientBalance);
+      };
+    };
+  };
+
+  //support legacy...code duplication is unfortunate
   public shared(msg) func transfer(request: TransferRequest) : async TransferResponse {
     let owner = ExtCore.User.toAID(request.from);
     let spender = AID.fromPrincipal(msg.caller, request.subaccount);
@@ -120,7 +176,23 @@ actor class erc20_token(init_name: Text, init_symbol: Text, init_decimals: Nat8,
       };
     };
   };
+
+  public shared(msg) func ext_approve(request: ApproveRequest) : async () {
+    let owner = AID.fromPrincipal(msg.caller, request.subaccount);
+    switch (_allowances.get(owner)) {
+      case (?owner_allowances) {
+        owner_allowances.put(request.spender, request.allowance);
+        _allowances.put(owner, owner_allowances);
+      };
+      case (_) {
+        var temp = HashMap.HashMap<Principal, Balance>(1, Principal.equal, Principal.hash);
+        temp.put(request.spender, request.allowance);
+        _allowances.put(owner, temp);
+      };
+    };
+  };
   
+  //support legacy...code duplication is unfortunate
   public shared(msg) func approve(request: ApproveRequest) : async () {
     let owner = AID.fromPrincipal(msg.caller, request.subaccount);
     switch (_allowances.get(owner)) {
@@ -136,10 +208,29 @@ actor class erc20_token(init_name: Text, init_symbol: Text, init_decimals: Nat8,
     };
   };
 
+  
+  public query func ext_extensions() : async [Extension] {
+    EXTENSIONS;
+  };
+
+  //support legacy...code duplication is unfortunate
   public query func extensions() : async [Extension] {
     EXTENSIONS;
   };
   
+  public query func ext_balance(request : BalanceRequest) : async BalanceResponse {
+    let aid = ExtCore.User.toAID(request.user);
+    switch (_balances.get(aid)) {
+      case (?balance) {
+        return #ok(balance);
+      };
+      case (_) {
+        return #ok(0);
+      };
+    }
+  };
+  
+  //support legacy...code duplication is unfortunate
   public query func balance(request : BalanceRequest) : async BalanceResponse {
     let aid = ExtCore.User.toAID(request.user);
     switch (_balances.get(aid)) {
@@ -152,10 +243,20 @@ actor class erc20_token(init_name: Text, init_symbol: Text, init_decimals: Nat8,
     }
   };
 
+  public query func ext_supply(token : TokenIdentifier) : async Result.Result<Balance, CommonError> {
+    #ok(_supply);
+  };
+
+  //support legacy...code duplication is unfortunate
   public query func supply(token : TokenIdentifier) : async Result.Result<Balance, CommonError> {
     #ok(_supply);
   };
+
+  public query func ext_metadata(token : TokenIdentifier) : async Result.Result<Metadata, CommonError> {
+    #ok(METADATA);
+  };
   
+  //support legacy...code duplication is unfortunate
   public query func metadata(token : TokenIdentifier) : async Result.Result<Metadata, CommonError> {
     #ok(METADATA);
   };

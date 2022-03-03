@@ -70,7 +70,23 @@ shared (install) actor class erc721_token(init_minter: Principal) = this {
 		assert(msg.caller == _minter);
 		_minter := minter;
 	};
+
+  public shared(msg) func ext_mintNFT(request : MintRequest) : async TokenIndex {
+		assert(msg.caller == _minter);
+    let receiver = ExtCore.User.toAID(request.to);
+		let token = _nextTokenId;
+		let md : Metadata = #nonfungible({
+			metadata = request.metadata;
+		}); 
+		_registry.put(token, receiver);
+		_tokenMetadata.put(token, md);
+		_supply := _supply + 1;
+		_nextTokenId := _nextTokenId + 1;
+    token;
+	};
 	
+
+  //support legacy...code duplication is unfortunate
   public shared(msg) func mintNFT(request : MintRequest) : async TokenIndex {
 		assert(msg.caller == _minter);
     let receiver = ExtCore.User.toAID(request.to);
@@ -84,8 +100,8 @@ shared (install) actor class erc721_token(init_minter: Principal) = this {
 		_nextTokenId := _nextTokenId + 1;
     token;
 	};
-  
-  public shared(msg) func transfer(request: TransferRequest) : async TransferResponse {
+
+  public shared(msg) func ext_transfer(request: TransferRequest) : async TransferResponse {
     if (request.amount != 1) {
 			return #err(#Other("Must use amount of 1"));
 		};
@@ -124,6 +140,69 @@ shared (install) actor class erc721_token(init_minter: Principal) = this {
     };
   };
   
+
+  //support legacy...code duplication is unfortunate
+  public shared(msg) func transfer(request: TransferRequest) : async TransferResponse {
+    if (request.amount != 1) {
+			return #err(#Other("Must use amount of 1"));
+		};
+		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
+			return #err(#InvalidToken(request.token));
+		};
+		let token = ExtCore.TokenIdentifier.getIndex(request.token);
+    let owner = ExtCore.User.toAID(request.from);
+    let spender = AID.fromPrincipal(msg.caller, request.subaccount);
+    let receiver = ExtCore.User.toAID(request.to);
+		
+    switch (_registry.get(token)) {
+      case (?token_owner) {
+				if(AID.equal(owner, token_owner) == false) {
+					return #err(#Unauthorized(owner));
+				};
+				if (AID.equal(owner, spender) == false) {
+					switch (_allowances.get(token)) {
+						case (?token_spender) {
+							if(Principal.equal(msg.caller, token_spender) == false) {								
+								return #err(#Unauthorized(spender));
+							};
+						};
+						case (_) {
+							return #err(#Unauthorized(spender));
+						};
+					};
+				};
+				_allowances.delete(token);
+				_registry.put(token, receiver);
+				return #ok(request.amount);
+      };
+      case (_) {
+        return #err(#InvalidToken(request.token));
+      };
+    };
+  };
+
+  public shared(msg) func ext_approve(request: ApproveRequest) : async () {
+		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
+			return;
+		};
+		let token = ExtCore.TokenIdentifier.getIndex(request.token);
+    let owner = AID.fromPrincipal(msg.caller, request.subaccount);
+		switch (_registry.get(token)) {
+      case (?token_owner) {
+				if(AID.equal(owner, token_owner) == false) {
+					return;
+				};
+				_allowances.put(token, request.spender);
+        return;
+      };
+      case (_) {
+        return;
+      };
+    };
+  };
+  
+
+  //support legacy...code duplication is unfortunate
   public shared(msg) func approve(request: ApproveRequest) : async () {
 		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
 			return;
@@ -147,10 +226,38 @@ shared (install) actor class erc721_token(init_minter: Principal) = this {
   public query func getMinter() : async Principal {
     _minter;
   };
+
+  public query func ext_extensions() : async [Extension] {
+    EXTENSIONS;
+  };
+
+  //support legacy...code duplication is unfortunate
   public query func extensions() : async [Extension] {
     EXTENSIONS;
   };
+
+  public query func ext_balance(request : BalanceRequest) : async BalanceResponse {
+		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
+			return #err(#InvalidToken(request.token));
+		};
+		let token = ExtCore.TokenIdentifier.getIndex(request.token);
+    let aid = ExtCore.User.toAID(request.user);
+    switch (_registry.get(token)) {
+      case (?token_owner) {
+				if (AID.equal(aid, token_owner) == true) {
+					return #ok(1);
+				} else {					
+					return #ok(0);
+				};
+      };
+      case (_) {
+        return #err(#InvalidToken(request.token));
+      };
+    };
+  };
   
+
+  //support legacy...code duplication is unfortunate
   public query func balance(request : BalanceRequest) : async BalanceResponse {
 		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
 			return #err(#InvalidToken(request.token));
@@ -170,7 +277,40 @@ shared (install) actor class erc721_token(init_minter: Principal) = this {
       };
     };
   };
+
+
+  public query func ext_allowance(request : AllowanceRequest) : async Result.Result<Balance, CommonError> {
+		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
+			return #err(#InvalidToken(request.token));
+		};
+		let token = ExtCore.TokenIdentifier.getIndex(request.token);
+		let owner = ExtCore.User.toAID(request.owner);
+		switch (_registry.get(token)) {
+      case (?token_owner) {
+				if (AID.equal(owner, token_owner) == false) {					
+					return #err(#Other("Invalid owner"));
+				};
+				switch (_allowances.get(token)) {
+					case (?token_spender) {
+						if (Principal.equal(request.spender, token_spender) == true) {
+							return #ok(1);
+						} else {					
+							return #ok(0);
+						};
+					};
+					case (_) {
+						return #ok(0);
+					};
+				};
+      };
+      case (_) {
+        return #err(#InvalidToken(request.token));
+      };
+    };
+  };
 	
+
+  //support legacy...code duplication is unfortunate
 	public query func allowance(request : AllowanceRequest) : async Result.Result<Balance, CommonError> {
 		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
 			return #err(#InvalidToken(request.token));
@@ -200,7 +340,24 @@ shared (install) actor class erc721_token(init_minter: Principal) = this {
       };
     };
   };
+
+  public query func ext_bearer(token : TokenIdentifier) : async Result.Result<AccountIdentifier, CommonError> {
+		if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
+			return #err(#InvalidToken(token));
+		};
+		let tokenind = ExtCore.TokenIdentifier.getIndex(token);
+    switch (_registry.get(tokenind)) {
+      case (?token_owner) {
+				return #ok(token_owner);
+      };
+      case (_) {
+        return #err(#InvalidToken(token));
+      };
+    };
+	};
   
+
+  //support legacy...code duplication is unfortunate
 	public query func bearer(token : TokenIdentifier) : async Result.Result<AccountIdentifier, CommonError> {
 		if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
 			return #err(#InvalidToken(token));
@@ -216,7 +373,13 @@ shared (install) actor class erc721_token(init_minter: Principal) = this {
     };
 	};
   
-	public query func supply(token : TokenIdentifier) : async Result.Result<Balance, CommonError> {
+	public query func ext_supply(token : TokenIdentifier) : async Result.Result<Balance, CommonError> {
+    #ok(_supply);
+  };
+
+
+  //support legacy...code duplication is unfortunate
+  public query func supply(token : TokenIdentifier) : async Result.Result<Balance, CommonError> {
     #ok(_supply);
   };
   
@@ -229,7 +392,24 @@ shared (install) actor class erc721_token(init_minter: Principal) = this {
   public query func getTokens() : async [(TokenIndex, Metadata)] {
     Iter.toArray(_tokenMetadata.entries());
   };
+
+  public query func ext_metadata(token : TokenIdentifier) : async Result.Result<Metadata, CommonError> {
+    if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
+			return #err(#InvalidToken(token));
+		};
+		let tokenind = ExtCore.TokenIdentifier.getIndex(token);
+    switch (_tokenMetadata.get(tokenind)) {
+      case (?token_metadata) {
+				return #ok(token_metadata);
+      };
+      case (_) {
+        return #err(#InvalidToken(token));
+      };
+    };
+  };
   
+
+  //support legacy...code duplication is unfortunate
   public query func metadata(token : TokenIdentifier) : async Result.Result<Metadata, CommonError> {
     if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
 			return #err(#InvalidToken(token));

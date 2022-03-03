@@ -46,11 +46,11 @@ The ext-core standard requires the following public entry points:
 
 ```
 type Token = actor {
-  extensions : shared query () -> async [Extension];
+  ext_extensions : shared query () -> async [Extension];
     
-  balance: shared query (request : BalanceRequest) -> async BalanceResponse;
+  ext_balance: shared query (request : BalanceRequest) -> async BalanceResponse;
       
-  transfer: shared (request : TransferRequest) -> async TransferResponse;
+  ext_transfer: shared (request : TransferRequest) -> async TransferResponse;
 };
 ```
 
@@ -123,7 +123,7 @@ The above represents a common error which can be returned.
 
 ### extensions (query)
 ```
-extensions : shared query () -> async [Extension];
+ext_extensions : shared query () -> async [Extension];
 ```
 Public query that returns an array of `Extension`s that the canister supports.
 
@@ -135,7 +135,7 @@ type BalanceRequest = {
 };
 type BalanceResponse = Result<Balance, CommonError>;
 
-balance: shared query (request : BalanceRequest) -> async BalanceResponse;
+ext_balance: shared query (request : BalanceRequest) -> async BalanceResponse;
 ```
 Public query that returns the `Balance` of a requested `User`, otherwise an error if it fails.
 
@@ -159,7 +159,7 @@ type TransferResponse = Result<Balance, {
   #Other : Text;
 }>;
 
-transfer: shared (request : TransferRequest) -> async TransferResponse;
+ext_transfer: shared (request : TransferRequest) -> async TransferResponse;
 ```
 This function attempts to transfer an `amount` of `token` between two users, `from` and `to`, with an optional `memo` (which is additional data specific to the transaction).
 

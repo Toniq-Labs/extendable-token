@@ -30,8 +30,8 @@ module ExtOperator = {
   };
 
   public type ValidActor = actor {
-    updateOperator : shared (request : OperatorRequest) -> async OperatorResponse;
+    ext_updateOperator : shared (request : OperatorRequest) -> async OperatorResponse;
     
-    isAuthorized : shared (request : IsAuthorizedRequest) -> async Result.Result<Bool, ExtCore.CommonError>;
+    ext_isAuthorized : shared (request : IsAuthorizedRequest) -> async Result.Result<Bool, ExtCore.CommonError>;
   };
 };

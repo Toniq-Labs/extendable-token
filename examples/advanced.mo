@@ -95,6 +95,10 @@ actor class advanced_token(init_admin: Principal) = this{
     _nextTokenId := _nextTokenId + 1;
     return #ok(tokenId);
   };
+
+  public shared(msg) func ext_transfer(request: TransferRequest) : async TransferResponse {
+    await transfer(request);
+  };
   
   public shared(msg) func transfer(request: TransferRequest) : async TransferResponse {
     if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
@@ -204,6 +208,12 @@ actor class advanced_token(init_admin: Principal) = this{
     };
   };
 
+  public query func ext_extensions() : async [Extension] {
+    //it would be nice if we didn't have to duplicate code here, but have to because queries can't call await.
+    //ideally we'd do return await extensions();
+    EXTENSIONS;
+  };
+
   public query func extensions() : async [Extension] {
     EXTENSIONS;
   };
@@ -244,6 +254,21 @@ actor class advanced_token(init_admin: Principal) = this{
     return Iter.size(_registry.entries());
   };
 
+
+  public query func ext_supply(token : TokenIdentifier) : async Result.Result<Balance, CommonError> {
+    //it would be nice if we didn't have to duplicate code here, but have to because queries can't call await.
+    //ideally we'd do return await supply(token);
+    if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
+			return #err(#InvalidToken(token));
+		};
+    let tokenIndex = ExtCore.TokenIdentifier.getIndex(token);
+    var tokenData = switch(_metadata.get(tokenIndex)) {
+      case (?metadata) metadata;
+      case (_) return #err(#InvalidToken(token));
+    };
+    #ok(tokenData.1);
+  };
+
   public query func supply(token : TokenIdentifier) : async Result.Result<Balance, CommonError> {
     if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
 			return #err(#InvalidToken(token));
@@ -255,6 +280,22 @@ actor class advanced_token(init_admin: Principal) = this{
     };
     #ok(tokenData.1);
   };
+
+
+  public query func ext_metadata(token : TokenIdentifier) : async Result.Result<Metadata, CommonError> {
+    //it would be nice if we didn't have to duplicate code here, but have to because queries can't call await.
+    //ideally we'd do return await metadata(token);
+    if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
+			return #err(#InvalidToken(token));
+		};
+    let tokenIndex = ExtCore.TokenIdentifier.getIndex(token);
+    var tokenData = switch(_metadata.get(tokenIndex)) {
+      case (?metadata) metadata;
+      case (_) return #err(#InvalidToken(token));
+    };
+    #ok(tokenData.0);
+  };
+
   public query func metadata(token : TokenIdentifier) : async Result.Result<Metadata, CommonError> {
     if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
 			return #err(#InvalidToken(token));
@@ -266,6 +307,8 @@ actor class advanced_token(init_admin: Principal) = this{
     };
     #ok(tokenData.0);
   };
+
+
   public query func registry(token : TokenIdentifier) : async Result.Result<[(AccountIdentifier, Balance)], CommonError> {
     if (ExtCore.TokenIdentifier.isPrincipal(token, Principal.fromActor(this)) == false) {
 			return #err(#InvalidToken(token));

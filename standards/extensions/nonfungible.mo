@@ -4,7 +4,7 @@ type MintRequest = {
   metadata : ?Blob;
 };
 type Token_nonfungible = actor {
-  bearer: shared query (token : TokenIdentifier) -> async Result<AccountIdentifier, CommonError>;
+  ext_bearer: shared query (token : TokenIdentifier) -> async Result<AccountIdentifier, CommonError>;
 
-  mintNFT: shared (request : MintRequest) -> async ();
+  ext_mintNFT: shared (request : MintRequest) -> async ();
 };

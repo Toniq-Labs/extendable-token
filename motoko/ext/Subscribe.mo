@@ -5,8 +5,7 @@ import ExtCore "./Core";
 module ExtSubscribe = {
 
   public type ValidActor = actor {
-    subscribe: shared (callback : ExtCore.NotifyCallback) -> ();
-
-    unsubscribe : shared () -> ();
+    ext_subscribe: shared (callback : ExtCore.NotifyCallback) -> ();
+    ext_unsubscribe : shared () -> ();
   };
 };

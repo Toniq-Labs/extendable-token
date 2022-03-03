@@ -19,6 +19,6 @@ type SendArgs = {
 };
 
 type Token_ledger = actor actor {
-  account_balance_dfx : shared query AccountBalanceArgs -> async ICPTs;
-  send_dfx : shared SendArgs -> async BlockHeight;
+  icledger_account_balance_dfx : shared query AccountBalanceArgs -> async ICPTs;
+  icledger_send_dfx : shared SendArgs -> async BlockHeight;
 }

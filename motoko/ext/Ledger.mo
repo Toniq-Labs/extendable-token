@@ -20,8 +20,8 @@ module ExtLedger = {
   };
 
   public type ValidActor = actor {
-    account_balance_dfx : shared query AccountBalanceArgs -> async ICPTs;
+    icledger_account_balance_dfx : shared query AccountBalanceArgs -> async ICPTs;
     
-    send_dfx : shared SendArgs -> async BlockHeight;
+    icledger_send_dfx : shared SendArgs -> async BlockHeight;
   };
 };
