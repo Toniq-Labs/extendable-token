@@ -1,19 +1,21 @@
 /**
 
  */
-import Result "mo:base/Result";
-import Principal "mo:base/Principal";
-import Array "mo:base/Array";
-import Hash "mo:base/Hash";
-import Blob "mo:base/Blob";
-import Text "mo:base/Text";
-import Nat "mo:base/Nat";
-import Nat8 "mo:base/Nat8";
-import Nat32 "mo:base/Nat32";
-//TODO pull in better
 import AID "../util/AccountIdentifier";
-import Hex "../util/Hex";
+import Array "mo:base/Array";
+import Blob "mo:base/Blob";
 import CRC32 "../util/CRC32";
+import Encoding "mo:encoding/Binary";
+import Hash "mo:base/Hash";
+import Hex "../util/Hex";
+import Nat "mo:base/Nat";
+import Nat32 "mo:base/Nat32";
+import Nat64 "mo:base/Int32";
+import Nat8 "mo:base/Nat8";
+import Principal "mo:base/Principal";
+import PrincipalEXT "../util/Principal";
+import Result "mo:base/Result";
+import Text "mo:base/Text";
 
 module ExtCore = {
   public type AccountIdentifier = AID.AccountIdentifier;
@@ -82,7 +84,6 @@ module ExtCore = {
     private let tds : [Nat8] = [10, 116, 105, 100]; //b"\x0Atid"
     public let equal = Text.equal;
     public let hash = Text.hash;
-    /*
     public func fromText(t : Text, i : TokenIndex) : TokenIdentifier {
       return fromPrincipal(Principal.fromText(t), i);
     };
@@ -93,10 +94,9 @@ module ExtCore = {
       return fromBytes(Blob.toArray(b), i);
     };
     public func fromBytes(c : [Nat8], i : TokenIndex) : TokenIdentifier {
-      let bytes : [Nat8] = Array.append(Array.append(tds, c), nat32tobytes(i));
-      return Hex.encode(Array.append(crc, bytes));
+      let bytes : [Nat8] = Array.append(Array.append(tds, c), Encoding.BigEndian.fromNat32(i));
+      return Principal.toText(PrincipalEXT.fromBlob(Blob.fromArray(bytes)));
     };
-    */
     //Coz can't get principal directly, we can compare the bytes
     public func isPrincipal(tid : TokenIdentifier, p : Principal) : Bool {
       let tobj = decode(tid);
