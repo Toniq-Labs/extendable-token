@@ -14,9 +14,9 @@ import Iter "mo:base/Iter";
 import Blob "mo:base/Blob";
 import Text "mo:base/Text";
 import Time "mo:base/Time";
+import Random "mo:base/Random";
 import Array "mo:base/Array";
 import Option "mo:base/Option";
-
 import AID "../motoko/util/AccountIdentifier";
 import ExtCore "../motoko/ext/Core";
 import ExtCommon "../motoko/ext/Common";
@@ -28,12 +28,14 @@ import List "mo:base/List";
 import Encoding "mo:encoding/Binary";
 //Cap
 import Cap "mo:cap/Cap";
-
 import Queue "../motoko/util/Queue";
+import EXTAsset "extAsset";
 
-actor class EXTNFTCanister(init_owner: Principal) = this {
+actor class EXTNFT(init_owner: Principal) = this {
   
   // EXT Types
+  type EXTAssetService = EXTAsset.EXTAsset;
+  type Order = {#less; #equal; #greater};
   type Time = Time.Time;
   type AccountIdentifier = ExtCore.AccountIdentifier;
   type SubAccount = ExtCore.SubAccount;
@@ -157,6 +159,21 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     buyer : AccountIdentifier;
     time : Time;
   };
+  type SaleDetailGroup = {
+    id : Nat;
+    name : Text;
+    start : Time;
+    end : Time;
+    available : Bool;
+    pricing : [(Nat64, Nat64)];
+  };
+  type SaleDetails = {
+    start : Time;
+    end : Time;
+    groups : [SaleDetailGroup];
+    quantity : Nat;
+    remaining : Nat;
+  };
   type SaleSettings = {
     price : Nat64;
     salePrice : Nat64;
@@ -173,7 +190,7 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     limit : (Nat64, Nat64); //user, group
     start : Time;
     end : Time;
-    pricing : [(Nat64, Nat64)];
+    pricing : [(Nat64, Nat64)]; //qty,price
     participants : [AccountIdentifier];
   };
   type SaleRemaining = {#burn; #send : AccountIdentifier; #retain;};
@@ -241,11 +258,11 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
   private stable var data_registryTableState : [(TokenIndex, AccountIdentifier)] = [];
   private stable var data_ownersTableState : [(AccountIdentifier, [TokenIndex])] = [];
 	private stable var data_assetsTableState : [(AssetHandle, Asset)] = [];
+	private stable var data_assetCanistersTableState : [(Principal, Nat)] = [];
 	private stable var data_chunksTableState : [(ChunkId, Blob)] = [];
 	private stable var data_tokenMetadataTableState : [(TokenIndex, Metadata)] = [];
 	private stable var data_tokenListingTableState : [(TokenIndex, Listing)] = [];
   private stable var data_paymentSettlementsTableState : [(AccountIdentifier, Payment)] = [];
-  private stable var data_saleGroupsTableState : [(AccountIdentifier, Nat)] = [];
   private stable var data_internalRunHeartbeat : Bool = true;
   private stable var data_supply : Balance  = 0;
 	private stable var data_transactions : [Transaction] = [];
@@ -253,14 +270,7 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
   private stable var data_internalNextChunkId : ChunkId  = 0;
   private stable var data_internalNextSubAccount : Nat = 0;
   private stable var data_storedChunkSize : Nat = 0;
-  //Sale
-  private stable var data_saleTransactions : [SaleTransaction] = [];
-  private stable var data_expiredPayments : [(AccountIdentifier, SubAccount)] = [];
-  private stable var data_soldIcp : Nat64 = 0;
-  private stable var data_saleSoldQuantity : Nat = 0;
-  private stable var data_saleSoldTracker : [(Nat, AccountIdentifier, Nat64)] = [];
-  private stable var data_saleCurrent : ?Sale = null;
-  private stable var data_saleTokensForSale : [TokenIndex] = [];
+
   
   //CAP
   private stable var cap_rootBucketId : ?Text = null;
@@ -273,6 +283,8 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
   private stable var config_collection_name : Text  = "[PLEASE CHANGE]";
   private stable var config_collection_data : Text  = "{}";
   private stable var config_marketplace_open : Time  = 0;
+  
+  private stable var config_canCreateAssetCanister : Bool  = true;
 
   //Non-stable
   //Queues
@@ -283,12 +295,14 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
 	var _owners : HashMap.HashMap<AccountIdentifier, [TokenIndex]> = HashMap.fromIter(data_ownersTableState.vals(), 0, AID.equal, AID.hash);
 	var _assets : HashMap.HashMap<AssetHandle, Asset> = HashMap.fromIter(data_assetsTableState.vals(), 0, AID.equal, AID.hash);
 	var _chunks : HashMap.HashMap<ChunkId, Blob> = HashMap.fromIter(data_chunksTableState.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
+  var _assetCanisters : HashMap.HashMap<Principal, Nat> = HashMap.fromIter(data_assetCanistersTableState.vals(), 0, Principal.equal, Principal.hash);
   var _tokenMetadata : HashMap.HashMap<TokenIndex, Metadata> = HashMap.fromIter(data_tokenMetadataTableState.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
   var _tokenListing : HashMap.HashMap<TokenIndex, Listing> = HashMap.fromIter(data_tokenListingTableState.vals(), 0, ExtCore.TokenIndex.equal, ExtCore.TokenIndex.hash);
   var _paymentSettlements : HashMap.HashMap<AccountIdentifier, Payment> = HashMap.fromIter(data_paymentSettlementsTableState.vals(), 0, AID.equal, AID.hash);
-  var _saleGroups : HashMap.HashMap<AccountIdentifier, Nat> = HashMap.fromIter(data_saleGroupsTableState.vals(), 0, AID.equal, AID.hash);
   
   //Variables
+  let ASSET_CANISTER_CYCLES_TOPUP : Nat = 5_000_000_000_000;
+  let ASSET_CANISTER_MIN_CYCLES : Nat = 1_000_000_000_000;
   let MAX_CHUNK_STORAGE : Nat = 800000000;//800MB
   let ENTREPOT_SALE_FEES_ADDRESS : AccountIdentifier = "b18587720a742b1975c700a3ca11014510baecc3b98b270b24aaa2971d5c35fa";
   let ENTREPOT_SALE_FEES_AMOUNT : Nat64 = 6000;
@@ -312,8 +326,8 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     data_ownersTableState := Iter.toArray(_owners.entries());
     data_tokenListingTableState := Iter.toArray(_tokenListing.entries());
     data_assetsTableState := Iter.toArray(_assets.entries());
+    data_assetCanistersTableState := Iter.toArray(_assetCanisters.entries());
     data_paymentSettlementsTableState := Iter.toArray(_paymentSettlements.entries());
-    data_saleGroupsTableState := Iter.toArray(_saleGroups.entries());
     data_disbursementQueueState := Queue.toArray(_disbursements);
     data_capEventsQueueState := Queue.toArray(_capEvents);
     
@@ -324,8 +338,8 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     data_ownersTableState := [];
     data_tokenListingTableState := [];
     data_assetsTableState := [];
+    data_assetCanistersTableState := [];
     data_paymentSettlementsTableState := [];
-    data_saleGroupsTableState := [];
     data_disbursementQueueState := [];
     data_capEventsQueueState := [];
   };
@@ -341,9 +355,22 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
         await heartbeat_paymentSettlements();
         await heartbeat_disbursements();
         await heartbeat_capEvents();
+        await heartbeat_assetCanisters();
       } catch(e){
         data_internalRunHeartbeat := false;
       };
+    };
+  };
+  public shared(msg) func heartbeat_assetCanisters() : async () {
+    if (Cycles.balance() < ASSET_CANISTER_CYCLES_TOPUP) return ();
+    for((a,s) in _assetCanisters.entries()){
+      var acService : EXTAssetService = actor(Principal.toText(a));
+      var cycles : Nat = await acService.availableCycles();
+      if (cycles < ASSET_CANISTER_MIN_CYCLES) {
+        Cycles.add(ASSET_CANISTER_CYCLES_TOPUP);
+        await acService.acceptCycles();        
+      };
+      if (Cycles.balance() < ASSET_CANISTER_CYCLES_TOPUP) return ();
     };
   };
   public shared(msg) func heartbeat_disbursements() : async () {
@@ -373,7 +400,6 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     for((paymentAddress, settlement) in _expiredPaymentSettlements().vals()){
       switch(settlement.purchase) {
         case(#nft t) ignore(ext_marketplaceSettle(paymentAddress));
-        case(#sale q) ignore(ext_saleSettle(paymentAddress));
         case(_) {};
       };
     };
@@ -412,45 +438,60 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     assert(_isAdmin(msg.caller));
     data_internalRunHeartbeat := true;
   };
-  
+  public query func ext_assetFits(internal : Bool, size : Nat) : async Bool {
+    if (internal) {
+      if ((data_storedChunkSize+size) < MAX_CHUNK_STORAGE) {
+        return true;
+      } else {
+        return false;
+      };
+    } else {
+      Option.isSome(_getFreeAssetCanister(size));
+    };
+  };
   public query func ext_assetExists(assetHandle : AssetHandle) : async Bool {
     Option.isSome(_assets.get(assetHandle));
   };
-  public shared(msg) func ext_assetAdd(assetHandle : AssetHandle, ctype : Text, filename : Text, atype : AssetType) : async () {
-    assert(_isAdmin(msg.caller));
-    _assets.put(assetHandle, {
-      ctype = ctype;
-      filename = filename;
-      atype = atype;
-    });
+  public shared(msg) func ext_assetAdd(assetHandle : AssetHandle, ctype : Text, filename : Text, atype : AssetType, size : Nat) : async () {
+    await _ext_internal_assetAdd(msg.caller, assetHandle, ctype, filename, atype, size);
   };
   public shared(msg) func ext_assetStream(assetHandle : AssetHandle, chunk : Blob, first : Bool) : async Bool {
     assert(_isAdmin(msg.caller));
     let size = Blob.toArray(chunk).size();
-    assert((data_storedChunkSize+size) < MAX_CHUNK_STORAGE);
     switch(_assets.get(assetHandle)) {
       case(?asset) {
-        let chunkId = data_internalNextChunkId;
-        data_internalNextChunkId+=1;
-        _chunks.put(chunkId, chunk);
-        var newChunks : [Nat32] = [chunkId];
-        if (first == true) {
-          //Purge old chunks
-          _deleteChunksForAssetHandle(assetHandle);
-        } else {
-          switch(asset.atype){
-            case(#direct existingChunks){
+        switch(asset.atype){
+          case(#direct existingChunks){
+            assert((data_storedChunkSize+size) < MAX_CHUNK_STORAGE);
+            let chunkId = data_internalNextChunkId;
+            data_internalNextChunkId+=1;
+            _chunks.put(chunkId, chunk);
+            var newChunks : [Nat32] = [chunkId];
+            if (first == true) {
+              _deleteChunksForAssetHandle(assetHandle);
+            } else {
               newChunks := Array.append(existingChunks, newChunks);
-            };
-            case(_){};
+            };             
+            data_storedChunkSize += size;
+            _assets.put(assetHandle, {
+              ctype = asset.ctype;
+              filename = asset.filename;
+              atype = #direct(newChunks);
+            });
           };
-        };               
-        data_storedChunkSize += size;
-        _assets.put(assetHandle, {
-          ctype = asset.ctype;
-          filename = asset.filename;
-          atype = #direct(newChunks);
-        });
+          case(#canister d) {
+            //Forward to external canister
+            switch(_assetCanisters.get(Principal.fromText(d.canister))){
+              case(?currentSize) {
+                let acService : EXTAssetService = actor(d.canister);
+                _assetCanisters.put(Principal.fromText(d.canister), currentSize+size);
+                return await acService.streamAsset(d.id, chunk, first);
+              };
+              case(_){};
+            };
+          };
+          case(_){};
+        };
       };
       case(_) return false;
     };
@@ -462,7 +503,6 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
   // public query func ext_select(type : DataType, sort : ?DataSortFunction, filter : ?DataFilterFunction) : (DataTypeResponse, Pagination){
     
   // }
-  
   //EXT Standard
   //Management
   public shared(msg) func ext_setOwner(p: Principal) : async () {
@@ -477,6 +517,10 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     assert(_isAdmin(msg.caller));
     config_royalty_address := address;
     config_royalty_fee := fee;
+  };
+  public shared(msg) func ext_addAssetCanister() : async () {
+    assert(_isAdmin(msg.caller));
+    await _createAssetCanister();
   };
   public shared(msg) func ext_setCollectionMetadata(name : Text, metadata : Text) : async () {
     assert(_isAdmin(msg.caller));
@@ -544,68 +588,10 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     config_admin := config_owner;
   };
   public shared(msg) func ext_transfer(request: TransferRequest) : async TransferResponse {
-    if (request.amount != 1) {
-			return #err(#Other("Must use amount of 1"));
-		};
-		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
-			return #err(#InvalidToken(request.token));
-		};
-		let token = ExtCore.TokenIdentifier.getIndex(request.token);
-    if (Option.isSome(_tokenListing.get(token))) {
-			return #err(#Other("This token is currently listed for sale!"));
-    };
-    let owner = ExtCore.User.toAID(request.from);
-    let spender = AID.fromPrincipal(msg.caller, request.subaccount);
-    let receiver = ExtCore.User.toAID(request.to);
-		if (AID.equal(owner, spender) == false) {
-      return #err(#Unauthorized(spender));
-    };
-    switch (_registry.get(token)) {
-      case (?token_owner) {
-				if(AID.equal(owner, token_owner) == false) {
-					return #err(#Unauthorized(owner));
-				};
-        if (request.notify) {
-          switch(ExtCore.User.toPrincipal(request.to)) {
-            case (?canisterId) {
-              //Do this to avoid atomicity issue
-              _removeTokenFromUser(token);
-              let notifier : NotifyService = actor(Principal.toText(canisterId));
-              switch(await notifier.tokenTransferNotification(request.token, request.from, request.amount, request.memo)) {
-                case (?balance) {
-                  if (balance == 1) {
-                    _transferTokenToUser(token, receiver);
-                    _capAddTransfer(token, owner, receiver);
-                    return #ok(request.amount);
-                  } else {
-                    //Refund
-                    _transferTokenToUser(token, owner);
-                    return #err(#Rejected);
-                  };
-                };
-                case (_) {
-                  //Refund
-                  _transferTokenToUser(token, owner);
-                  return #err(#Rejected);
-                };
-              };
-            };
-            case (_) {
-              return #err(#CannotNotify(receiver));
-            }
-          };
-        } else {
-          _transferTokenToUser(token, receiver);
-          _capAddTransfer(token, owner, receiver);
-          return #ok(request.amount);
-        };
-      };
-      case (_) {
-        return #err(#InvalidToken(request.token));
-      };
-    };
+    await _ext_internal_transfer(msg.caller, request);
   };
   public shared(msg) func ext_mint(request : [(AccountIdentifier, Metadata)]) : async [TokenIndex] {
+    assert(_isAdmin(msg.caller));
     var ret : [TokenIndex] = [];
     for(r in request.vals()){
       _tokenMetadata.put(data_internalNextTokenId, r.1);
@@ -619,39 +605,7 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
   
   //Marketplace
   public shared(msg) func ext_marketplaceList(request: ListRequest) : async Result.Result<(), CommonError> {
-    if (Time.now() < config_marketplace_open) {
-      if (_saleEnded() == false){
-        return #err(#Other("You can not list yet"));
-      };
-    };
-		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
-			return #err(#InvalidToken(request.token));
-		};
-		let token = ExtCore.TokenIdentifier.getIndex(request.token);
-    let owner = AID.fromPrincipal(msg.caller, request.from_subaccount);
-    switch (_registry.get(token)) {
-      case (?token_owner) {
-				if(AID.equal(owner, token_owner) == false) {
-					return #err(#Other("Not authorized"));
-				};
-        switch(request.price) {
-          case(?price) {
-            _tokenListing.put(token, {
-              seller = msg.caller;
-              price = price;
-              locked = null;
-            });
-          };
-          case(_) {
-            _tokenListing.delete(token);
-          };
-        };
-        return #ok;
-      };
-      case (_) {
-        return #err(#InvalidToken(request.token));
-      };
-    };
+    await _ext_internal_marketplaceList(msg.caller, request);
   };
   public shared(msg) func ext_marketplacePurchase(tokenid : TokenIdentifier, price : Nat64, buyer : AccountIdentifier) : async Result.Result<(AccountIdentifier, Nat64), CommonError> {
 		if (ExtCore.TokenIdentifier.isPrincipal(tokenid, Principal.fromActor(this)) == false) {
@@ -663,7 +617,7 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
         if (listing.price != price) {
           return #err(#Other("Price has changed!"));
         } else {
-          return #ok(ext_addPayment(#nft(token), price, buyer), price);
+          return #ok(_ext_addPayment(#nft(token), price, buyer), price);
         };
 			};
 			case (_) {
@@ -672,7 +626,7 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
 		};
   };
   public shared(msg) func ext_marketplaceSettle(paymentaddress : AccountIdentifier) : async Result.Result<(), CommonError> {
-    switch(await ext_checkPayment(paymentaddress)) {
+    switch(await _ext_checkPayment(paymentaddress)) {
       case(?(settlement, response)){
         switch(response){
           case(#ok ledgerResponse) {
@@ -734,231 +688,13 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
   public query func ext_marketplaceStats() : async (Nat64, Nat64, Nat64, Nat64, Nat, Nat, Nat) {
     _ext_internalStats();
   };
-  //Sale
-  public shared(msg) func ext_saleOpen(groups : [SalePricingGroup], remaining : SaleRemaining, airdrop : [AccountIdentifier]) : async Bool {
-    assert(groups.size() > 0);
-    switch(data_saleCurrent) {
-      case(?s) return false;
-      case(_) {
-        //TODO get random number
-        let rnd : Int = 123;
-        data_saleTokensForSale := shuffleTokens(rnd, switch(_owners.get("0000")){ case(?t) t; case(_) []});
-        if (airdrop.size() > 0) {
-          if (airdrop.size() > data_saleTokensForSale.size()) return false;
-          for(a in airdrop.vals()){
-            _transferTokenToUser(nextTokens(1)[0], a);
-          };
-        };
-        var start : Time = 0;
-        var end : Time = 0;
-        for(g in groups.vals()){
-          if (start == 0 or g.start < start) {
-            start := g.start;
-          };
-          if (end == 0 or g.end > end) {
-            end := g.end;
-          };
-        };
-        data_saleCurrent := ?{
-          start = start;
-          end = end;
-          groups = groups;
-          quantity =  data_saleTokensForSale.size();
-          remaining = remaining;
-        };
-        return true;
-      };
+  public shared(msg) func ext_capInit() : async () {
+    if (Option.isNull(cap_rootBucketId)){
+      try {
+        cap_rootBucketId := await ExternalService_Cap.handshake(Principal.toText(Principal.fromActor(this)), 1_000_000_000_000);
+      } catch e {};
     };
   };
-  public shared(msg) func ext_saleClose() : async Bool {
-    switch(data_saleCurrent) {
-      case(?s){        
-        if (Time.now() < s.start or _saleEnded()) {
-          if (Time.now() >= s.end){
-            if (data_saleTokensForSale.size() > 0){
-              switch(s.remaining) {
-                case(#burn) {
-                  for(t in data_saleTokensForSale.vals()){
-                    _transferTokenToUser(t, "0000");
-                  };
-                };
-                case(#send a) {
-                  for(t in data_saleTokensForSale.vals()){
-                    _transferTokenToUser(t, a);
-                  };
-                };
-                case(_){};
-              };
-            };
-          };
-          data_saleTokensForSale := [];
-          data_saleSoldTracker := [];
-          for(a in _saleGroups.entries()){
-            _saleGroups.delete(a.0);
-          };
-          data_saleCurrent := null;
-          return true;
-        } else {
-          return false;
-        };
-      };
-      case(_) return true;
-    };
-  };
-  public shared(msg) func ext_salePurchase(groupId : Nat, amount : Nat64, quantity : Nat64, address : AccountIdentifier) : async Result.Result<(AccountIdentifier, Nat64), Text> {
-    switch(data_saleCurrent){
-      case(?data_saleCurrent) {
-        if (availableTokens() == 0) {
-          return #err("No more NFTs available right now!");
-        };
-        if (availableTokens() < Nat64.toNat(quantity)) {
-          return #err("Not enough NFTs");
-        };
-        if (Time.now() < data_saleCurrent.start) {
-          return #err("The sale has not started yet");
-        };
-        if (groupId >= data_saleCurrent.groups.size()){
-          return #err("The sale group is unavailable");
-        };
-        let group = data_saleCurrent.groups[groupId];
-        if (Time.now() < group.start) {
-          return #err("This group sale has not started yet");
-        };
-        if (Time.now() >= group.end) {
-          return #err("This group sale has ended");
-        };
-        if (group.participants.size() > 0){
-          if (isParticipant(address, group.participants) == false) {
-            return #err("You are not in this group");
-          };
-        };
-        if (_checkSaleLimits(groupId, address, quantity, group.limit) == false) {
-          return #err("This group sale has ended");
-        };
-        var total : Nat64 = 0;
-        var found : Bool = false;
-        for(a in group.pricing.vals()){
-          if (a.0 == quantity) {
-            total := a.1;
-            found := true;
-          };
-        };
-        if (found){
-          return #err("Not a valid quantity");
-        };
-        if (total == 0){
-          return #err("Not a valid total");
-        };
-        if (total > amount) {
-          return #err("Price mismatch!");
-        };
-        let paymentaddress = ext_addPayment(#sale(quantity), total, address);
-        if (group.limit.0 > 0 or group.limit.1 > 0) {
-          _saleGroups.put(paymentaddress, groupId);
-        };
-        #ok((paymentaddress, total));
-      };
-      case(_){
-        return #err("There is no available sale");
-      };
-    };
-  };
-  public shared(msg) func ext_saleSettle(paymentaddress : AccountIdentifier) : async Result.Result<(), Text> {
-    switch(await ext_checkPayment(paymentaddress)) {
-      case(?(settlement, response)){
-        switch(response){
-          case(#ok ledgerResponse) {
-            switch(settlement.purchase){
-              case(#sale quantity) {
-                switch(data_saleCurrent){
-                  case(?currentSale){                
-                    switch(_saleGroups.get(paymentaddress)){
-                      case(?groupId){
-                        if (groupId >= currentSale.groups.size()){
-                          _addDisbursement((0, settlement.payer, settlement.subaccount, (ledgerResponse.e8s-10000)));
-                          _paymentSettlements.delete(paymentaddress);
-                          return #err("The sale group is unavailable");
-                        };
-                        let group = currentSale.groups[groupId];
-                        if (_checkSaleLimits(groupId, paymentaddress, quantity, group.limit) == false) {
-                          _addDisbursement((0, settlement.payer, settlement.subaccount, (ledgerResponse.e8s-10000)));
-                          _paymentSettlements.delete(paymentaddress);
-                          return #err("Exceeded group limits");
-                        };
-                      };
-                      case(_){};
-                    };
-                  };
-                  case(_){};
-                };
-                if (Nat64.toNat(quantity) > availableTokens()){
-                  _addDisbursement((0, settlement.payer, settlement.subaccount, (ledgerResponse.e8s-10000)));
-                  _paymentSettlements.delete(paymentaddress);
-                  return #err("Not enough NFTs - a refund will be sent automatically very soon");
-                } else {
-                  var tokens = nextTokens(quantity);
-                  for (a in tokens.vals()){
-                    _transferTokenToUser(a, settlement.payer);
-                  };
-                  data_saleTransactions := Array.append(data_saleTransactions, [{
-                    tokens = tokens;
-                    seller = Principal.fromActor(this);
-                    price = settlement.amount;
-                    buyer = settlement.payer;
-                    time = Time.now();
-                  }]);
-                  data_soldIcp += settlement.amount;
-                  data_saleSoldQuantity += tokens.size();
-                  _paymentSettlements.delete(paymentaddress);
-                  var bal : Nat64 = ledgerResponse.e8s - (10000 * 2); //Remove 2x tx fee
-                  var fee : Nat64 = bal * ENTREPOT_SALE_FEES_AMOUNT / 100000; //Calculate entrepot fee and send
-                  _addDisbursement((0, ENTREPOT_SALE_FEES_ADDRESS, settlement.subaccount, fee));
-                  var rem : Nat64 = bal - fee : Nat64; //Remove fee from balance and send
-                  _addDisbursement((0, config_royalty_address, settlement.subaccount, rem));
-                  
-                  //Track limits
-                  switch(_saleGroups.get(paymentaddress)){
-                    case(?groupId){
-                      data_saleSoldTracker := Array.append(data_saleSoldTracker, [(groupId, settlement.payer, quantity)]);
-                    };
-                    case(_){};
-                  };
-                  return #ok();
-                }
-              };
-              case(_) return #err("Not a payment for a sale");
-            };
-          };
-          case(#err e) return #err(e);
-        };
-      };
-      case(_) return #err("Nothing to settle");
-    };
-  };
-  public query(msg) func ext_saleTransactions() : async [SaleTransaction] {
-    data_saleTransactions;
-  };
-  public query(msg) func ext_saleSettings(address : AccountIdentifier) : async ?SaleSettings {
-    switch(data_saleCurrent) {
-      case(?cs){
-        null;
-        // return ?{
-          // price = getAddressPrice(address);
-          // salePrice = salePrice;
-          // remaining = availableTokens();
-          // sold = data_saleSoldQuantity;
-          // startTime = publicSaleStart;
-          // whitelistTime = whitelistTime;
-          // whitelist = isParticipant(address);
-          // totalToSell = _totalToSell;
-          // bulkPricing = getAddressBulkPrice(address);
-        // } : SaleSettings;
-        
-      };
-      case(_) null;
-    };
-  };
-  
   //HTTP Views
   public query func http_request(request : HttpRequest) : async HttpResponse {
     switch(_getParam(request.url, "tokenid")) {
@@ -1033,96 +769,31 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
   };
   
   //Private
-  func _prng(current: Nat8) : Nat8 {
-    let next : Int =  _fromNat8ToInt(current) * 1103515245 + 12345;
-    return _fromIntToNat8(next) % 100;
-  };
-  func _fromNat8ToInt(n : Nat8) : Int {
-    Int8.toInt(Int8.fromNat8(n))
-  };
-  func _fromIntToNat8(n: Int) : Nat8 {
-    Int8.toNat8(Int8.fromIntWrap(n))
-  };
-  func shuffleTokens(rnd: Int, tokens : [TokenIndex]) : [TokenIndex] {
-    var randomNumber : Nat8 = _fromIntToNat8(rnd);
-    var currentIndex : Nat = tokens.size();
-    var ttokens = Array.thaw<TokenIndex>(tokens);
-
-    while (currentIndex != 1){
-      randomNumber := _prng(randomNumber);
-      var randomIndex : Nat = Int.abs(Float.toInt(Float.floor(Float.fromInt(_fromNat8ToInt(randomNumber)* currentIndex/100))));
-      assert(randomIndex < currentIndex);
-      currentIndex -= 1;
-      let temporaryValue = ttokens[currentIndex];
-      ttokens[currentIndex] := ttokens[randomIndex];
-      ttokens[randomIndex] := temporaryValue;
-    };
-    Array.freeze(ttokens);
-  };
-  func nextTokens(qty : Nat64) : [TokenIndex] {
-    if (data_saleTokensForSale.size() >= Nat64.toNat(qty)) {
-      var ret : [TokenIndex] = [];
-      while(ret.size() < Nat64.toNat(qty)) {        
-        var token : TokenIndex = data_saleTokensForSale[0];
-        data_saleTokensForSale := Array.filter(data_saleTokensForSale, func(x : TokenIndex) : Bool { x != token } );
-        ret := Array.append(ret, [token]);
-      };
-      ret;
-    } else {
-      [];
-    }
-  };
-  func isParticipant(address : AccountIdentifier, addresses : [AccountIdentifier]) : Bool {
-    Option.isSome(Array.find(addresses, func (a : AccountIdentifier) : Bool { a == address }));
-  };
-
-  func availableTokens() : Nat {
-    data_saleTokensForSale.size();
-  };
-  func _saleEnded() : Bool {
-    switch(data_saleCurrent) {
-      case(?s){        
-        if (Time.now() >= s.end or data_saleTokensForSale.size() == 0) {
-          return true;
-        } else {
-          return false;
-        };
-      };
-      case(_) return true;
+  func _createAssetCanister() : async () {
+    Cycles.add(ASSET_CANISTER_CYCLES_TOPUP);
+    config_canCreateAssetCanister := false;
+    try{
+      let b = await EXTAsset.EXTAsset();
+      config_canCreateAssetCanister := true;
+      let newp = Principal.fromActor(b);
+      _assetCanisters.put(newp, 0);
+    } catch (e) {
+      config_canCreateAssetCanister := true;
+      assert(false);
     };
   };
-  func _checkSaleLimits(groupId : Nat, address : AccountIdentifier, quantity : Nat64, limit : (Nat64, Nat64)) : Bool {
-    if (limit.0 > 0) {
-      let purchased = Array.foldLeft(Array.mapFilter(data_saleSoldTracker, func(a : (Nat, AccountIdentifier, Nat64)) : ?Nat64 {
-        if (a.0 == groupId and a.1 == address) {
-          return ?a.2;
-        } else {
-          return null;
-        };
-      }), 0 : Nat64, func(a : Nat64, b : Nat64) : Nat64 { a + b });
-      if ((purchased + quantity) > limit.0) {
-        return false;
+  func _getFreeAssetCanister(size : Nat) : ?(Principal, Nat) {
+    Array.find<(Principal, Nat)>(Array.sort<(Principal, Nat)>(Iter.toArray(_assetCanisters.entries()), func(a : (Principal, Nat), b : (Principal, Nat)) : Order {
+      if (a.1 < b.1) {
+        return #less;
       };
-    };
-    if (limit.1 > 0) {
-      let purchased = Array.foldLeft(Array.mapFilter(data_saleSoldTracker, func(a : (Nat, AccountIdentifier, Nat64)) : ?Nat64 {
-        if (a.0 == groupId) {
-          return ?a.2;
-        } else {
-          return null;
-        };
-      }), 0 : Nat64, func(a : Nat64, b : Nat64) : Nat64 { a + b });
-      if ((purchased + quantity) > limit.1) {
-        return false;
+      if (a.1 > b.1) {
+        return #greater;
       };
-    };
-    return true;
-  };
-  func _salesFees() : [(AccountIdentifier, Nat64)] {
-    [
-      (config_royalty_address, config_royalty_fee),
-      (ENTREPOT_SALE_FEES_ADDRESS, ENTREPOT_SALE_FEES_AMOUNT),
-    ]
+      return #equal;
+    }), func(a : (Principal, Nat)) : Bool {
+      return (a.1+size) < MAX_CHUNK_STORAGE;
+    });
   };
   func _marketplaceFees() : [(AccountIdentifier, Nat64)] {
     [
@@ -1232,11 +903,16 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
         });
       };
     } else {
-      return {
-        status_code = 200;
-        headers = [("content-type", asset.ctype), ("cache-control", "public, max-age=15552000")];
-        body = Option.unwrap(_chunks.get(chunks[0]));
-        streaming_strategy = null;
+      switch(_chunks.get(chunks[0])) {
+        case(?chunk) {          
+          return {
+            status_code = 200;
+            headers = [("content-type", asset.ctype), ("cache-control", "public, max-age=15552000")];
+            body = chunk;
+            streaming_strategy = null;
+          };
+        };
+        case(_) return HTTP_NOT_FOUND;
       };
     };
   };
@@ -1280,7 +956,7 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
       case(_){};
     };
   };
-  func ext_checkPayment(paymentaddress : AccountIdentifier) : async ?(Payment, Result.Result<ICPTs, Text>) {
+  func _ext_checkPayment(paymentaddress : AccountIdentifier) : async ?(Payment, Result.Result<ICPTs, Text>) {
     switch(_paymentSettlements.get(paymentaddress)) {
       case(?settlement){
         let response : ICPTs = await ExternalService_ICPLedger.account_balance_dfx({account = paymentaddress});
@@ -1304,7 +980,7 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
       case(_) return null;
     };
   };
-  func ext_addPayment(purchase : PaymentType, amount : Nat64, payer : AccountIdentifier) : AccountIdentifier {
+  func _ext_addPayment(purchase : PaymentType, amount : Nat64, payer : AccountIdentifier) : AccountIdentifier {
     let subaccount = _getNextSubAccount();
     let paymentAddress : AccountIdentifier = AID.fromPrincipal(Principal.fromActor(this), ?subaccount);
     _paymentSettlements.put(paymentAddress, {
@@ -1551,6 +1227,152 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     };
   };
   
+  
+  //Internal legacy
+  func _ext_internal_assetAdd(caller : Principal, assetHandle : AssetHandle, ctype : Text, filename : Text, atype : AssetType, size : Nat) : async () {
+    assert(_isAdmin(caller));
+    switch(atype){
+      case(#direct _) {
+        _assets.put(assetHandle, {
+          ctype = ctype;
+          filename = filename;
+          atype = atype;
+        });        
+      };
+      case(#other _) {
+        _assets.put(assetHandle, {
+          ctype = ctype;
+          filename = filename;
+          atype = atype;
+        });
+      };
+      case(#canister d) {
+        if (d.canister == "") {
+          //We need to auto generate an asset canister for this asset
+          let t = switch(_getFreeAssetCanister(size)) {
+            case(?a) a;
+            case(_){
+              await _createAssetCanister();
+              Option.unwrap(_getFreeAssetCanister(size));
+            };
+          };
+          let acService : EXTAssetService = actor(Principal.toText(t.0));
+          let aid : Nat32 = await acService.addAsset(ctype, filename);
+          _assets.put(assetHandle, {
+            ctype = ctype;
+            filename = filename;
+            atype = #canister({
+              canister = Principal.toText(t.0);
+              id = aid;
+            });
+          });
+        } else {
+          _assets.put(assetHandle, {
+            ctype = ctype;
+            filename = filename;
+            atype = atype;
+          });
+        };
+      };
+    };
+  };
+  func _ext_internal_marketplaceList(caller : Principal, request: ListRequest) : async Result.Result<(), CommonError> {
+    if (Time.now() < config_marketplace_open) {
+      if (_saleEnded() == false){
+        return #err(#Other("You can not list yet"));
+      };
+    };
+		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
+			return #err(#InvalidToken(request.token));
+		};
+		let token = ExtCore.TokenIdentifier.getIndex(request.token);
+    let owner = AID.fromPrincipal(caller, request.from_subaccount);
+    switch (_registry.get(token)) {
+      case (?token_owner) {
+				if(AID.equal(owner, token_owner) == false) {
+					return #err(#Other("Not authorized"));
+				};
+        switch(request.price) {
+          case(?price) {
+            _tokenListing.put(token, {
+              seller = caller;
+              price = price;
+              locked = null;
+            });
+          };
+          case(_) {
+            _tokenListing.delete(token);
+          };
+        };
+        return #ok;
+      };
+      case (_) {
+        return #err(#InvalidToken(request.token));
+      };
+    };
+  };
+  func _ext_internal_transfer(caller : Principal, request: TransferRequest) : async TransferResponse {
+    if (request.amount != 1) {
+			return #err(#Other("Must use amount of 1"));
+		};
+		if (ExtCore.TokenIdentifier.isPrincipal(request.token, Principal.fromActor(this)) == false) {
+			return #err(#InvalidToken(request.token));
+		};
+		let token = ExtCore.TokenIdentifier.getIndex(request.token);
+    if (Option.isSome(_tokenListing.get(token))) {
+			return #err(#Other("This token is currently listed for sale!"));
+    };
+    let owner = ExtCore.User.toAID(request.from);
+    let spender = AID.fromPrincipal(caller, request.subaccount);
+    let receiver = ExtCore.User.toAID(request.to);
+		if (AID.equal(owner, spender) == false) {
+      return #err(#Unauthorized(spender));
+    };
+    switch (_registry.get(token)) {
+      case (?token_owner) {
+				if(AID.equal(owner, token_owner) == false) {
+					return #err(#Unauthorized(owner));
+				};
+        if (request.notify) {
+          switch(ExtCore.User.toPrincipal(request.to)) {
+            case (?canisterId) {
+              //Do this to avoid atomicity issue
+              _removeTokenFromUser(token);
+              let notifier : NotifyService = actor(Principal.toText(canisterId));
+              switch(await notifier.tokenTransferNotification(request.token, request.from, request.amount, request.memo)) {
+                case (?balance) {
+                  if (balance == 1) {
+                    _transferTokenToUser(token, receiver);
+                    _capAddTransfer(token, owner, receiver);
+                    return #ok(request.amount);
+                  } else {
+                    //Refund
+                    _transferTokenToUser(token, owner);
+                    return #err(#Rejected);
+                  };
+                };
+                case (_) {
+                  //Refund
+                  _transferTokenToUser(token, owner);
+                  return #err(#Rejected);
+                };
+              };
+            };
+            case (_) {
+              return #err(#CannotNotify(receiver));
+            }
+          };
+        } else {
+          _transferTokenToUser(token, receiver);
+          _capAddTransfer(token, owner, receiver);
+          return #ok(request.amount);
+        };
+      };
+      case (_) {
+        return #err(#InvalidToken(request.token));
+      };
+    };
+  };
   //Legacy
   public query func failedSales() : async [(AccountIdentifier, SubAccount)] {
     data_expiredPayments;
@@ -1560,39 +1382,17 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     config_admin := minter;
   };
   public shared(msg) func addThumbnail(handle : AssetHandle, data : Blob) : async () {
-    await ext_assetAdd(handle, "image/png", handle, #direct([]) : AssetType);
+    await _ext_internal_assetAdd(msg.caller, handle, "image/png", handle, #direct([]) : AssetType, 0);
     ignore(await ext_assetStream(handle, data, true));
   };
   public shared(msg) func addAsset(handle : AssetHandle, id : Nat32, ctype : Text, name : Text, canister : Text) : async () {
-    await ext_assetAdd(handle, ctype, name, #canister({
+    await _ext_internal_assetAdd(msg.caller, handle, ctype, name, #canister({
       id = id;
       canister = canister;
-    }) : AssetType);
-  };
-  public query(msg) func salesSettings(address : AccountIdentifier) : async SaleSettings {
-    return {
-      price = 0;
-      salePrice = 0;
-      remaining = 0;
-      sold = 0;
-      startTime = 0;
-      whitelistTime = 0;
-      whitelist = false;
-      totalToSell = 0;
-      bulkPricing = [];
-    } : SaleSettings;
-  };
-  public query(msg) func saleTransactions() : async [SaleTransaction] {
-    data_saleTransactions;
-  };
-  public shared(msg) func reserve(amount : Nat64, quantity : Nat64, address : AccountIdentifier, _subaccountNOTUSED : SubAccount) : async Result.Result<(AccountIdentifier, Nat64), Text> {
-    await ext_salePurchase(0, amount, quantity, address);
-  };
-  public shared(msg) func retreive(paymentaddress : AccountIdentifier) : async Result.Result<(), Text> {
-    await ext_saleSettle(paymentaddress);
+    }) : AssetType, 0);
   };
   public shared(msg) func transfer(request: TransferRequest) : async TransferResponse {
-    await ext_transfer(request);
+    await _ext_internal_transfer(msg.caller, request);
   };
   public shared(msg) func lock(tokenid : TokenIdentifier, price : Nat64, address : AccountIdentifier, _subaccountNOTUSED : SubAccount) : async Result.Result<AccountIdentifier, CommonError> {
     switch(await ext_marketplacePurchase(tokenid, price, address)){
@@ -1601,11 +1401,24 @@ actor class EXTNFTCanister(init_owner: Principal) = this {
     };
   };
   public shared(msg) func settle(tokenid : TokenIdentifier) : async Result.Result<(), CommonError> {
-    //This is a legacy call that does nothing anymore
+    switch(Array.find(Iter.toArray(_paymentSettlements.entries()), func(a : (AccountIdentifier, Payment)) : Bool {
+      switch(a.1.purchase){
+        case(#nft t) {
+          return (t == ExtCore.TokenIdentifier.getIndex(tokenid));
+        };
+        case(_){};
+      };
+      return false;
+    })){
+      case(?a) {
+        return await ext_marketplaceSettle(a.0);
+      };
+      case(_){};
+    };
     return #ok;
   };
   public shared(msg) func list(request: ListRequest) : async Result.Result<(), CommonError> {
-    await ext_marketplaceList(request);
+    await _ext_internal_marketplaceList(msg.caller, request);
   };
   public query func getMinter() : async Principal {
     config_admin;
