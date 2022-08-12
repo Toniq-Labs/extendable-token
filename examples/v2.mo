@@ -22,7 +22,7 @@ import ExtCore "../motoko/ext/Core";
 import ExtCommon "../motoko/ext/Common";
 import ExtAllowance "../motoko/ext/Allowance";
 import ExtNonFungible "../motoko/ext/NonFungible";
-//EXTv2 SALE
+
 import Int64 "mo:base/Int64";
 import List "mo:base/List";
 import Encoding "mo:encoding/Binary";
@@ -152,55 +152,6 @@ actor class EXTNFT(init_owner: Principal) = this {
     payer : AccountIdentifier;
     expires : Time;
   };
-  type SaleTransaction = {
-    tokens : [TokenIndex];
-    seller : Principal;
-    price : Nat64;
-    buyer : AccountIdentifier;
-    time : Time;
-  };
-  type SaleDetailGroup = {
-    id : Nat;
-    name : Text;
-    start : Time;
-    end : Time;
-    available : Bool;
-    pricing : [(Nat64, Nat64)];
-  };
-  type SaleDetails = {
-    start : Time;
-    end : Time;
-    groups : [SaleDetailGroup];
-    quantity : Nat;
-    remaining : Nat;
-  };
-  type SaleSettings = {
-    price : Nat64;
-    salePrice : Nat64;
-    sold : Nat;
-    remaining : Nat;
-    startTime : Time;
-    whitelistTime : Time;
-    whitelist : Bool;
-    totalToSell : Nat;
-    bulkPricing : [(Nat64, Nat64)];
-  };
-  type SalePricingGroup = {
-    name : Text;
-    limit : (Nat64, Nat64); //user, group
-    start : Time;
-    end : Time;
-    pricing : [(Nat64, Nat64)]; //qty,price
-    participants : [AccountIdentifier];
-  };
-  type SaleRemaining = {#burn; #send : AccountIdentifier; #retain;};
-  type Sale = {
-    start : Time; //Start of first group
-    end : Time; //End of first group
-    groups : [SalePricingGroup];
-    quantity : Nat; //Tokens for sale, set by 0000 address
-    remaining : SaleRemaining;
-  };
   
   //EXTv2 Asset Handling
   type AssetHandle = Text;
@@ -304,14 +255,11 @@ actor class EXTNFT(init_owner: Principal) = this {
   let ASSET_CANISTER_CYCLES_TOPUP : Nat = 5_000_000_000_000;
   let ASSET_CANISTER_MIN_CYCLES : Nat = 1_000_000_000_000;
   let MAX_CHUNK_STORAGE : Nat = 800000000;//800MB
-  let ENTREPOT_SALE_FEES_ADDRESS : AccountIdentifier = "b18587720a742b1975c700a3ca11014510baecc3b98b270b24aaa2971d5c35fa";
-  let ENTREPOT_SALE_FEES_AMOUNT : Nat64 = 6000;
   let ENTREPOT_MARKETPLACE_FEES_ADDRESS : AccountIdentifier = "c7e461041c0c5800a56b64bb7cefc247abc0bbbb99bd46ff71c64e92d9f5c2f9";
   let ENTREPOT_MARKETPLACE_FEES_AMOUNT : Nat64 = 2000;
   let HTTP_NOT_FOUND : HttpResponse = {status_code = 404; headers = []; body = Blob.fromArray([]); streaming_strategy = null};
   let HTTP_BAD_REQUEST : HttpResponse = {status_code = 400; headers = []; body = Blob.fromArray([]); streaming_strategy = null};
-  
-  
+    
   //Services
   let ExternalService_Cap = Cap.Cap(?"lj532-6iaaa-aaaah-qcc7a-cai", cap_rootBucketId);
   let ExternalService_ICPLedger = actor "ryjl3-tyaaa-aaaaa-aaaba-cai" : actor { 
@@ -343,7 +291,7 @@ actor class EXTNFT(init_owner: Principal) = this {
     data_disbursementQueueState := [];
     data_capEventsQueueState := [];
   };
-  //Heartbeat: Removed for now
+  //Heartbeat: Removed for now, consumes too many cycles
   // system func heartbeat() : async () {
     // await heartbeat_external();
   // };
@@ -665,7 +613,7 @@ actor class EXTNFT(init_owner: Principal) = this {
                   case (_) {};
                 };
                 //If we are here, that means we need to refund the payment
-                //No listing, refund (to slow)	
+                //No listing, refund (too slow)	
                 _addDisbursement((0, settlement.payer, settlement.subaccount, (ledgerResponse.e8s-10000)));
                 _paymentSettlements.delete(paymentaddress);
                 return #err(#Other("NFT not for sale"));	
