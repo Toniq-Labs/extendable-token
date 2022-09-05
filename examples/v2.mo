@@ -256,7 +256,7 @@ actor class EXTNFT(init_owner: Principal) = this {
   let ASSET_CANISTER_MIN_CYCLES : Nat = 1_000_000_000_000;
   let MAX_CHUNK_STORAGE : Nat = 800000000;//800MB
   let ENTREPOT_MARKETPLACE_FEES_ADDRESS : AccountIdentifier = "c7e461041c0c5800a56b64bb7cefc247abc0bbbb99bd46ff71c64e92d9f5c2f9";
-  let ENTREPOT_MARKETPLACE_FEES_AMOUNT : Nat64 = 2000;
+  let ENTREPOT_MARKETPLACE_FEES_AMOUNT : Nat64 = 1000;
   let HTTP_NOT_FOUND : HttpResponse = {status_code = 404; headers = []; body = Blob.fromArray([]); streaming_strategy = null};
   let HTTP_BAD_REQUEST : HttpResponse = {status_code = 400; headers = []; body = Blob.fromArray([]); streaming_strategy = null};
     
