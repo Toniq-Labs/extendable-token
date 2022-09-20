@@ -36,6 +36,18 @@ actor class erc20_token(init_name: Text, init_symbol: Text, init_decimals: Nat8,
   type AllowanceRequest = ExtAllowance.AllowanceRequest;
   type ApproveRequest = ExtAllowance.ApproveRequest;
 
+  //mint request and response types
+  type MintRequest = {
+    to: ExtCore.User;
+    amount: ExtCore.Balance;
+    subaccount: ?ExtCore.SubAccount;
+  };
+
+  type MintResponse = Result.Result<ExtCore.Balance, {
+    #Rejected;
+    #Other : Text;
+  }>;
+
   type Metadata = ExtCommon.Metadata;
   
   private let EXTENSIONS : [Extension] = ["@ext/common", "@ext/allowance"];
@@ -169,4 +181,21 @@ actor class erc20_token(init_name: Text, init_symbol: Text, init_decimals: Nat8,
   public query func availableCycles() : async Nat {
     return Cycles.balance();
   };
+
+  public shared(msg) func mint(request: MintRequest) : async MintResponse {
+    let receiver = ExtCore.User.toAID(request.to);
+
+    var new_balance = switch (_balances.get(receiver)) {
+      case (?receiver_balance) {
+        receiver_balance + request.amount;
+      };
+      case (_) {
+        request.amount;
+      }
+    };
+    _balances.put(receiver, new_balance);
+    _supply := _supply + request.amount;
+    return #ok(new_balance);
+  }
+
 }
