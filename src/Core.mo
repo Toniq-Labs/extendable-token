@@ -11,9 +11,9 @@ import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Nat32 "mo:base/Nat32";
 //TODO pull in better
-import AID "../util/AccountIdentifier";
-import Hex "../util/Hex";
-import CRC32 "../util/CRC32";
+import AID "./util/AccountIdentifier";
+import Hex "./util/Hex";
+import CRC32 "./util/CRC32";
 
 module ExtCore = {
   public type AccountIdentifier = AID.AccountIdentifier;
