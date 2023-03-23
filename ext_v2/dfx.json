@@ -1,0 +1,23 @@
+{
+  "canisters": {
+    "ext_v2": {
+      "main": "src/ext_v2/v2.mo",
+      "type": "motoko"
+    }
+  },
+
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": "vessel sources"
+    }
+  },
+  "dfx": "0.11.1",
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:8000",
+      "type": "ephemeral"
+    }
+  },
+  "version": 1
+}

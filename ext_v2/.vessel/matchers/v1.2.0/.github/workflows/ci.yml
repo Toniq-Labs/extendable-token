@@ -1,0 +1,34 @@
+name: "build"
+on: push
+jobs:
+  tests:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: Check if Git tag exists
+      run: echo "HEAD_TAG=$(git tag --points-at HEAD)" >> $GITHUB_ENV
+    - name: "install wasmtime"
+      run: |
+       mkdir /home/runner/bin
+       echo "/home/runner/bin" >> $GITHUB_PATH
+       wget https://github.com/bytecodealliance/wasmtime/releases/download/v0.18.0/wasmtime-v0.18.0-x86_64-linux.tar.xz
+       tar xf wasmtime-v0.18.0-x86_64-linux.tar.xz
+       cp wasmtime-v0.18.0-x86_64-linux/wasmtime /home/runner/bin/wasmtime
+    - name: "install vessel"
+      run: |
+       wget --output-document /home/runner/bin/vessel https://github.com/kritzcreek/vessel/releases/download/v0.6.0/vessel-linux64
+       chmod +x /home/runner/bin/vessel
+    - name: "test"
+      run: |
+        pushd test
+        ./run_test.sh
+        popd
+    - name: "docs"
+      run: $(vessel bin)/mo-doc
+    - name: Upload docs
+      uses: JamesIves/github-pages-deploy-action@releases/v3
+      if: env.HEAD_TAG != ''
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        BRANCH: gh-pages # The branch the action should deploy to.
+        FOLDER: docs/ # The folder the action should deploy.      

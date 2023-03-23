@@ -1,0 +1,4 @@
+.vessel
+*.wasm
+docs
+.dfx
