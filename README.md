@@ -1,4 +1,6 @@
-# LATEST EXT Standard with examples on how to mint is in /ext_v2 folder, best copy files from /ext_v2 in new repo instead of using forked one.
+# LATEST EXT Standard
+
+... with examples on how to mint is in /ext_v2 folder, best copy files from /ext_v2 in new repo instead of using forked one.
 
 # EXT Standard
 ## The extendable token standard
