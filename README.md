@@ -20,6 +20,7 @@ Here are some of the initial extensions we are working on:
 * operator - Operator's for spending tokens
 * secure - Add's update calls for common queries (more secure)
 * subscribe - Provide interface for notification subscription
+* non-fungible - Add minting request and bearer query
 
 You can view more details [here](EXTENSIONS.md).
 
